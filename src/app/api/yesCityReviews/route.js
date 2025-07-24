@@ -1,7 +1,6 @@
 import { connectToDatabase } from '@/lib/db';
-import User from '@/models/User';
 import YesCityReview from '@/models/YesCityReview';
-import mongoose from 'mongoose';
+
 
 export async function POST(req) {
   try {
