@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: 'Access-Control-Allow-Origin',
-            value: 'http://localhost:3001', // 🔁 Replace with actual frontend URL
+            value: 'http://localhost:3000', // 🔁 Replace with actual frontend URL
           },
           {
             key: 'Access-Control-Allow-Methods',
