@@ -3,19 +3,24 @@ import User from '@/models/User';
 import { withAuth } from '@/middleware/auth';
 import { NextRequest, NextResponse } from 'next/server';
 
+interface WishlistItem {
+  onModel: string;
+  parentRef: string;
+}
+
 interface AuthenticatedRequest extends NextRequest {
   user?: {
     userId?: string;
     email?: string;
     isPremium?: 'FREE' | 'A' | 'B';
-    [key: string]: any;
+    [key: string]: unknown; // no `any`
   };
 }
 
 // POST: Add to wishlist
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
   await connectToDatabase();
-  const { onModel, parentRef } = await req.json();
+  const { onModel, parentRef } = (await req.json()) as WishlistItem;
   const userId = req.user?.userId;
 
   if (!userId) {
@@ -32,7 +37,8 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
   }
 
   const alreadyExists = user.wishlist.some(
-    (item: any) => item.onModel === onModel && item.parentRef.toString() === parentRef
+    (item: WishlistItem) =>
+      item.onModel === onModel && item.parentRef.toString() === parentRef
   );
 
   if (alreadyExists) {
@@ -48,7 +54,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
 // DELETE: Remove from wishlist
 export const DELETE = withAuth(async (req: AuthenticatedRequest) => {
   await connectToDatabase();
-  const { onModel, parentRef } = await req.json();
+  const { onModel, parentRef } = (await req.json()) as WishlistItem;
   const userId = req.user?.userId;
 
   if (!userId) {
@@ -81,7 +87,11 @@ import Place from '@/models/CityRoutes/Place';
 import Shop from '@/models/CityRoutes/Shop';
 import Transport from '@/models/CityRoutes/Transport';
 
-const MODELS: Record<string, any> = {
+type ModelType = {
+  findById: (id: string) => { lean: () => Promise<Record<string, unknown> | null> };
+};
+
+const MODELS: Record<string, ModelType> = {
   Accommodation,
   Activity,
   CityInfo,
@@ -111,12 +121,12 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
   }
 
   const populated = await Promise.all(
-    user.wishlist.map(async (item: any) => {
+    user.wishlist.map(async (item: WishlistItem & { toObject?: () => WishlistItem }) => {
       try {
         const Model = MODELS[item.onModel];
         if (!Model) return null;
         const data = await Model.findById(item.parentRef).lean();
-        return data ? { ...item.toObject(), data } : null;
+        return data ? { ...(item.toObject?.() ?? item), data } : null;
       } catch {
         return null;
       }

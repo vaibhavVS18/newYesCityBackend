@@ -3,18 +3,27 @@ import { connectToDatabase } from '@/lib/db';
 import NearbySpot from '@/models/CityRoutes/NearbySpot';
 import { withAuth } from '@/middleware/auth';
 
+interface AuthenticatedRequest extends NextRequest {
+  user?: {
+    isPremium?: 'FREE' | 'A' | 'B';
+    [key: string]: unknown;
+  };
+}
+
 function getAccessiblePremiums(userPremium: string) {
   if (userPremium === 'B') return ['FREE', 'A', 'B'];
   if (userPremium === 'A') return ['FREE', 'A'];
   return ['FREE'];
 }
 
-async function handler(req: NextRequest, context: { params: Promise<{ cityName: string }> }) {
+async function handler(
+  req: AuthenticatedRequest,
+  context: { params: Promise<{ cityName: string }> }
+) {
   try {
     await connectToDatabase();
 
-    const user = (req as any).user;
-    const userPremium = user?.isPremium || 'FREE';
+    const userPremium = req.user?.isPremium || 'FREE';
 
     const { cityName } = await context.params;
     const formattedCityName = decodeURIComponent(cityName).toLowerCase();
@@ -23,14 +32,14 @@ async function handler(req: NextRequest, context: { params: Promise<{ cityName: 
 
     const spots = await NearbySpot.find({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
-      premium: { $in: accessiblePremiums } // ✅ Premium filter
+      premium: { $in: accessiblePremiums },
     });
 
     if (!spots.length) {
       return NextResponse.json({ error: 'No nearby spots found' }, { status: 404 });
     }
 
-    const spotIds = spots.map(spot => spot._id);
+    const spotIds = spots.map((spot) => spot._id);
 
     await NearbySpot.updateMany(
       { _id: { $in: spotIds } },
@@ -46,4 +55,4 @@ async function handler(req: NextRequest, context: { params: Promise<{ cityName: 
   }
 }
 
-export const GET = withAuth(handler); // ✅ Auth middleware applied
+export const GET = withAuth(handler);

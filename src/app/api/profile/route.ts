@@ -9,7 +9,7 @@ interface AuthenticatedRequest extends NextRequest {
     userId?: string;
     email?: string;
     isPremium?: 'FREE' | 'A' | 'B';
-    [key: string]: any;
+    [key: string]: unknown; // removed 'any'
   };
 }
 
