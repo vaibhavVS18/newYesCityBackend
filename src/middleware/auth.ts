@@ -1,35 +1,38 @@
-// middleware/auth.ts
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET!;
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET is not defined');
+}
 
-export function verifyToken(token: string) {
+const JWT_SECRET = process.env.JWT_SECRET;
+
+export interface JWTPayload {
+  userId: string;
+  email: string;
+  isPremium: 'FREE' | 'A' | 'B';
+  [key: string]: unknown;
+}
+
+export interface AuthenticatedRequest extends NextRequest {
+  user?: JWTPayload;
+}
+
+export function verifyToken(token: string): JWTPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET);
-  } catch (error) {
+    return jwt.verify(token, JWT_SECRET!) as JWTPayload;
+  } catch {
     return null;
   }
 }
 
-// Make a custom request type that says:
-// “This request has everything NextRequest has plus a .user property.”
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    userId?: string;
-    email?: string;
-    isPremium?: 'FREE' | 'A' | 'B';
-    [key: string]: unknown; // optional if you may have more props
-  };
-}
-
-export function withAuth(
-  handler: (req: AuthenticatedRequest, context: any) => Promise<Response> | Response
+export function withAuth<Context extends { params?: Record<string, string | string[]> }>(
+  handler: (req: AuthenticatedRequest, context: Context) => Promise<Response> | Response
 ) {
-  return async (req: AuthenticatedRequest, context: any) => {
+  return async (req: AuthenticatedRequest, context: Context) => {
     const authHeader = req.headers.get('authorization');
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
@@ -40,8 +43,7 @@ export function withAuth(
       return NextResponse.json({ message: 'Invalid or expired token' }, { status: 403 });
     }
 
-    req.user = decoded as AuthenticatedRequest['user']; // ✅ no `any`
-
+    req.user = decoded;
     return handler(req, context);
   };
 }
