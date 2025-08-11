@@ -19,7 +19,7 @@ interface AuthenticatedRequest extends NextRequest {
     userId?: string;
     email?: string;
     isPremium?: 'FREE' | 'A' | 'B';
-    [key: string]: any; // optional if you may have more props
+    [key: string]: unknown; // optional if you may have more props
   };
 }
 
