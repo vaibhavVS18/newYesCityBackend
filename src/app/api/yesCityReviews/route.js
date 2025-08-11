@@ -3,7 +3,10 @@ import User from '@/models/User';
 import YesCityReview from '@/models/YesCityReview';
 import mongoose from 'mongoose';
 
-export async function POST(req) {
+import { withAuth } from '@/middleware/auth'; // ✅ Import middleware
+
+
+async function handler(req) {
   try {
     await connectToDatabase();
 
@@ -41,6 +44,8 @@ export async function POST(req) {
     });
   }
 }
+export const POST = withAuth(handler);
+
 
 export async function GET() {
   try {

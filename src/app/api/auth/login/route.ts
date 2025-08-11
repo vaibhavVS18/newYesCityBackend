@@ -1,0 +1,65 @@
+import { NextRequest, NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { connectToDatabase } from '@/lib/db';
+import User from '@/models/User';
+
+const JWT_SECRET = process.env.JWT_SECRET!;
+
+export async function POST(req: NextRequest) {
+  const body = await req.json();
+  const { emailOrUsername, password } = body;
+
+  if (!emailOrUsername || !password) {
+    return NextResponse.json(
+      { message: 'Email/Username and password are required' },
+      { status: 400 }
+    );
+  }
+
+  await connectToDatabase();
+
+  try {
+    const user = await User.findOne({
+      $or: [{ email: emailOrUsername }, { username: emailOrUsername }],
+    });
+
+    if (!user) {
+      return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
+    }
+
+    // ✅ Correct: use isPremium (not premium)
+const token = jwt.sign(
+  {
+    userId: user._id,
+    email: user.email,
+    isPremium: user.isPremium, // ✅ Include this
+  },
+  JWT_SECRET,
+  { expiresIn: '7d' }
+);
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: 'Login successful',
+        token,
+        user: {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+          isPremium: user.isPremium,
+        },
+      },
+      { status: 200 }
+    );
+  } catch (err) {
+    console.error('Login error:', err);
+    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+  }
+}

@@ -10,5 +10,6 @@ export async function connectToDatabase() {
   return mongoose.connect(MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
+    dbName: 'newDatabaseName', // 👈 your new database here
   });
 }
