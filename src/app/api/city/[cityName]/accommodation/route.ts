@@ -15,8 +15,9 @@ async function handler(req: NextRequest, context: { params: Promise<{ cityName: 
   try {
     await connectToDatabase();
 
-    const user = (req as any).user;
+    const user = (req as any).user;    // imp.
     const userPremium = user?.isPremium || 'FREE';
+     
     const { cityName } = await context.params;
     const formattedCityName = decodeURIComponent(cityName).toLowerCase();
 

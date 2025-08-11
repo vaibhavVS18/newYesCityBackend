@@ -28,6 +28,8 @@ export function withAuth(handler: Function) {
     }
 
     // ✅ Just attach the decoded token to req as .user
+//     decoded → is the payload from your JWT (e.g., { userId, email, isPremium }).
+// This line stores that payload on the req object under .user.
     (req as any).user = decoded;
 
     // ✅ Call the original handler with req and context
