@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import Activity from '@/models/CityRoutes/Activity';
-import { withAuth } from '@/middleware/auth'; // ✅ Include auth middleware
+import { withAuth } from '@/middleware/auth';
+
+// ✅ Interface so TypeScript knows req.user exists
+interface AuthenticatedRequest extends NextRequest {
+  user?: {
+    isPremium?: 'FREE' | 'A' | 'B';
+    [key: string]: unknown; // other props if needed
+  };
+}
 
 // ✅ Helper to get allowed tiers
 function getAccessiblePremiums(userPremium: string) {
@@ -11,30 +19,30 @@ function getAccessiblePremiums(userPremium: string) {
 }
 
 // ✅ Main handler wrapped with auth
-async function handler(req: NextRequest, context: { params: Promise<{ cityName: string }> }) {
+async function handler(
+  req: AuthenticatedRequest,
+  context: { params: Promise<{ cityName: string }> }
+) {
   try {
     await connectToDatabase();
 
-    // ✅ Extract user from JWT
-    const user = (req as any).user;
-    const userPremium = user?.isPremium || 'FREE';
+    const userPremium = req.user?.isPremium || 'FREE';
 
     const { cityName } = await context.params;
     const formattedCityName = decodeURIComponent(cityName).toLowerCase();
 
-    // ✅ Apply premium-based filter
     const accessiblePremiums = getAccessiblePremiums(userPremium);
 
     const activities = await Activity.find({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
-      premium: { $in: accessiblePremiums }
+      premium: { $in: accessiblePremiums },
     });
 
     if (!activities.length) {
       return NextResponse.json({ error: 'No activities found' }, { status: 404 });
     }
 
-    const activityIds = activities.map(act => act._id);
+    const activityIds = activities.map((act) => act._id);
 
     await Activity.updateMany(
       { _id: { $in: activityIds } },

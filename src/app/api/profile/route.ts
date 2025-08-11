@@ -1,39 +1,43 @@
-// app/api/profile/route.ts
-
 import { connectToDatabase } from '@/lib/db';
 import User from '@/models/User';
 import { withAuth } from '@/middleware/auth';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-export const PUT = withAuth(async (req: any) => {
+interface AuthenticatedRequest extends NextRequest {
+  user?: {
+    userId?: string;
+    email?: string;
+    isPremium?: 'FREE' | 'A' | 'B';
+    [key: string]: any;
+  };
+}
+
+export const PUT = withAuth(async (req: AuthenticatedRequest) => {
   try {
-    const body = await req.json();
-    const { username } = body;
-
-    // JWT verified user info is attached to req.user by withAuth
-    const userId = req.user.userId;
-
     await connectToDatabase();
+
+    const { username } = await req.json();
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID missing' }, { status: 401 });
+    }
 
     const user = await User.findById(userId);
     if (!user) {
-      return new Response(JSON.stringify({ error: 'User not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     user.username = username;
     await user.save();
 
-    return new Response(JSON.stringify({ user, message: 'Username updated successfully' }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return NextResponse.json(
+      { user, message: 'Username updated successfully' },
+      { status: 200 }
+    );
   } catch (error) {
     console.error('Error updating username:', error);
-    return new Response(JSON.stringify({ error: 'Failed to update username' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return NextResponse.json({ error: 'Failed to update username' }, { status: 500 });
   }
 });

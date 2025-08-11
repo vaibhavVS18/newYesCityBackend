@@ -1,22 +1,38 @@
 import { connectToDatabase } from '@/lib/db';
 import User from '@/models/User';
 import { withAuth } from '@/middleware/auth';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-//                  // POST and DELETE routes
-export const POST = withAuth(async (req) => {
+interface AuthenticatedRequest extends NextRequest {
+  user?: {
+    userId?: string;
+    email?: string;
+    isPremium?: 'FREE' | 'A' | 'B';
+    [key: string]: any;
+  };
+}
+
+// POST: Add to wishlist
+export const POST = withAuth(async (req: AuthenticatedRequest) => {
   await connectToDatabase();
   const { onModel, parentRef } = await req.json();
-  const userId = req.user.id;
+  const userId = req.user?.userId;
+
+  if (!userId) {
+    return NextResponse.json({ message: 'User ID missing' }, { status: 401 });
+  }
 
   if (!onModel || !parentRef) {
     return NextResponse.json({ message: 'onModel and parentRef required' }, { status: 400 });
   }
 
   const user = await User.findById(userId);
+  if (!user) {
+    return NextResponse.json({ message: 'User not found' }, { status: 404 });
+  }
 
   const alreadyExists = user.wishlist.some(
-    (item) => item.onModel === onModel && item.parentRef.toString() === parentRef
+    (item: any) => item.onModel === onModel && item.parentRef.toString() === parentRef
   );
 
   if (alreadyExists) {
@@ -29,27 +45,28 @@ export const POST = withAuth(async (req) => {
   return NextResponse.json({ success: true, message: 'Added to wishlist' });
 });
 
-export const DELETE = withAuth(async (req) => {
+// DELETE: Remove from wishlist
+export const DELETE = withAuth(async (req: AuthenticatedRequest) => {
   await connectToDatabase();
   const { onModel, parentRef } = await req.json();
-  const userId = req.user.id;
+  const userId = req.user?.userId;
+
+  if (!userId) {
+    return NextResponse.json({ message: 'User ID missing' }, { status: 401 });
+  }
 
   if (!onModel || !parentRef) {
     return NextResponse.json({ message: 'onModel and parentRef required' }, { status: 400 });
   }
 
   await User.findByIdAndUpdate(userId, {
-    $pull: {
-      wishlist: { onModel, parentRef },
-    },
+    $pull: { wishlist: { onModel, parentRef } },
   });
 
   return NextResponse.json({ success: true, message: 'Removed from wishlist' });
 });
 
-
-
-//                  // GET route for wishlist
+// GET: Fetch wishlist
 import Accommodation from '@/models/CityRoutes/Accommodation';
 import Activity from '@/models/CityRoutes/Activity';
 import CityInfo from '@/models/CityRoutes/CityInfo';
@@ -64,7 +81,7 @@ import Place from '@/models/CityRoutes/Place';
 import Shop from '@/models/CityRoutes/Shop';
 import Transport from '@/models/CityRoutes/Transport';
 
-const MODELS = {
+const MODELS: Record<string, any> = {
   Accommodation,
   Activity,
   CityInfo,
@@ -80,19 +97,27 @@ const MODELS = {
   Transport,
 };
 
-export const GET = withAuth(async (req) => {
+export const GET = withAuth(async (req: AuthenticatedRequest) => {
   await connectToDatabase();
-  const userId = req.user.id;
+  const userId = req.user?.userId;
 
-  const user = await User.findById(userId).lean();
+  if (!userId) {
+    return NextResponse.json({ message: 'User ID missing' }, { status: 401 });
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
+  }
 
   const populated = await Promise.all(
-    user.wishlist.map(async (item) => {
+    user.wishlist.map(async (item: any) => {
       try {
         const Model = MODELS[item.onModel];
+        if (!Model) return null;
         const data = await Model.findById(item.parentRef).lean();
-        return data ? { ...item, data } : null;
-      } catch (e) {
+        return data ? { ...item.toObject(), data } : null;
+      } catch {
         return null;
       }
     })

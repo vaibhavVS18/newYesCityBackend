@@ -3,18 +3,27 @@ import { connectToDatabase } from '@/lib/db';
 import Transport from '@/models/CityRoutes/Transport';
 import { withAuth } from '@/middleware/auth';
 
+interface AuthenticatedRequest extends NextRequest {
+  user?: {
+    isPremium?: 'FREE' | 'A' | 'B';
+    [key: string]: unknown;
+  };
+}
+
 function getAccessiblePremiums(userPremium: string) {
   if (userPremium === 'B') return ['FREE', 'A', 'B'];
   if (userPremium === 'A') return ['FREE', 'A'];
   return ['FREE'];
 }
 
-async function handler(req: NextRequest, context: { params: Promise<{ cityName: string }> }) {
+async function handler(
+  req: AuthenticatedRequest,
+  context: { params: Promise<{ cityName: string }> }
+) {
   try {
     await connectToDatabase();
 
-    const user = (req as any).user;
-    const userPremium = user?.isPremium || 'FREE';
+    const userPremium = req.user?.isPremium || 'FREE';
 
     const { cityName } = await context.params;
     const formattedCityName = decodeURIComponent(cityName).toLowerCase();
@@ -23,14 +32,14 @@ async function handler(req: NextRequest, context: { params: Promise<{ cityName: 
 
     const transports = await Transport.find({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
-      premium: { $in: accessiblePremiums }
+      premium: { $in: accessiblePremiums },
     });
 
     if (!transports.length) {
       return NextResponse.json({ error: 'No transport options found' }, { status: 404 });
     }
 
-    const transportIds = transports.map(item => item._id);
+    const transportIds = transports.map((item) => item._id);
 
     await Transport.updateMany(
       { _id: { $in: transportIds } },
@@ -46,4 +55,4 @@ async function handler(req: NextRequest, context: { params: Promise<{ cityName: 
   }
 }
 
-export const GET = withAuth(handler); // ✅ Secures with JWT and sets req.user
+export const GET = withAuth(handler);

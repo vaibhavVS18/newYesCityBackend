@@ -12,8 +12,21 @@ export function verifyToken(token: string) {
   }
 }
 
-export function withAuth(handler: Function) {
-  return async (req: NextRequest, context: any) => {
+// Make a custom request type that says:
+// “This request has everything NextRequest has plus a .user property.”
+interface AuthenticatedRequest extends NextRequest {
+  user?: {
+    userId?: string;
+    email?: string;
+    isPremium?: 'FREE' | 'A' | 'B';
+    [key: string]: any; // optional if you may have more props
+  };
+}
+
+export function withAuth(
+  handler: (req: AuthenticatedRequest, context: any) => Promise<Response> | Response
+) {
+  return async (req: AuthenticatedRequest, context: any) => {
     const authHeader = req.headers.get('authorization');
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -27,12 +40,8 @@ export function withAuth(handler: Function) {
       return NextResponse.json({ message: 'Invalid or expired token' }, { status: 403 });
     }
 
-    // ✅ Just attach the decoded token to req as .user
-//     decoded → is the payload from your JWT (e.g., { userId, email, isPremium }).
-// This line stores that payload on the req object under .user.
-    (req as any).user = decoded;
+    req.user = decoded as AuthenticatedRequest['user']; // ✅ no `any`
 
-    // ✅ Call the original handler with req and context
     return handler(req, context);
   };
 }
