@@ -1,31 +1,20 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import Accommodation from '@/models/CityRoutes/Accommodation';
 import { withAuth } from '@/middleware/auth';
 
-// “telling  TypeScript that, this request (req) might also have a user object inside it.”
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    isPremium?: 'FREE' | 'A' | 'B';
-    [key: string]: unknown; // other user props if needed
-  };
-}
-
-function getAccessiblePremiums(userPremium: string) {
+function getAccessiblePremiums(userPremium) {
   if (userPremium === 'B') return ['FREE', 'A', 'B'];
   if (userPremium === 'A') return ['FREE', 'A'];
   return ['FREE'];
 }
 
-async function handler(
-  req: AuthenticatedRequest,
-  context: { params: Promise<{ cityName: string }> }
-) {
+async function handler(req, context) {
   try {
     await connectToDatabase();
 
-    const userPremium = req.user?.isPremium || 'FREE';
-
+    const user = req.user;
+    const userPremium = user?.isPremium || 'FREE';
     const { cityName } = await context.params;
     const formattedCityName = decodeURIComponent(cityName).toLowerCase();
 
@@ -33,7 +22,7 @@ async function handler(
 
     const accommodations = await Accommodation.find({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
-      premium: { $in: accessiblePremiums },
+      premium: { $in: accessiblePremiums }, // Filter based on premium
     });
 
     if (!accommodations.length) {

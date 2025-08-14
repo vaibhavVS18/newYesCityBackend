@@ -1,29 +1,20 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import Misc from '@/models/CityRoutes/Misc';
 import { withAuth } from '@/middleware/auth';
 
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    isPremium?: 'FREE' | 'A' | 'B';
-    [key: string]: unknown;
-  };
-}
-
-function getAccessiblePremiums(userPremium: string) {
+function getAccessiblePremiums(userPremium) {
   if (userPremium === 'B') return ['FREE', 'A', 'B'];
   if (userPremium === 'A') return ['FREE', 'A'];
   return ['FREE'];
 }
 
-async function handler(
-  req: AuthenticatedRequest,
-  context: { params: Promise<{ cityName: string }> }
-) {
+async function handler(req, context) {
   try {
     await connectToDatabase();
 
-    const userPremium = req.user?.isPremium || 'FREE';
+    const user = req.user;
+    const userPremium = user?.isPremium || 'FREE';
 
     const { cityName } = await context.params;
     const formattedCityName = decodeURIComponent(cityName).toLowerCase();
@@ -32,14 +23,14 @@ async function handler(
 
     const miscs = await Misc.find({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
-      premium: { $in: accessiblePremiums },
+      premium: { $in: accessiblePremiums }
     });
 
     if (!miscs.length) {
       return NextResponse.json({ error: 'No miscellaneous info found' }, { status: 404 });
     }
 
-    const miscIds = miscs.map((item) => item._id);
+    const miscIds = miscs.map(item => item._id);
 
     await Misc.updateMany(
       { _id: { $in: miscIds } },

@@ -1,48 +1,41 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import CityInfo from '@/models/CityRoutes/CityInfo';
-import { withAuth } from '@/middleware/auth';
-
-// ✅ Define a type so req.user is recognized
-interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    isPremium?: 'FREE' | 'A' | 'B';
-    [key: string]: unknown;
-  };
-}
+import { withAuth } from '@/middleware/auth'; // ✅ Auth middleware
 
 // ✅ Premium access helper
-function getAccessiblePremiums(userPremium: string) {
+function getAccessiblePremiums(userPremium) {
   if (userPremium === 'B') return ['FREE', 'A', 'B'];
   if (userPremium === 'A') return ['FREE', 'A'];
   return ['FREE'];
 }
 
-async function handler(
-  req: AuthenticatedRequest,
-  context: { params: Promise<{ cityName: string }> }
-) {
+async function handler(req, context) {
   try {
     await connectToDatabase();
 
-    const userPremium = req.user?.isPremium || 'FREE';
+    // ✅ Get premium tier from decoded token
+    const user = req.user;
+    const userPremium = user?.isPremium || 'FREE';
 
     const { cityName } = await context.params;
     const formattedCityName = decodeURIComponent(cityName).toLowerCase();
 
     const accessiblePremiums = getAccessiblePremiums(userPremium);
 
+    // ✅ Query with premium filtering
     const cityInfos = await CityInfo.find({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
-      premium: { $in: accessiblePremiums },
+      premium: { $in: accessiblePremiums }
     });
 
     if (!cityInfos.length) {
       return NextResponse.json({ error: 'No city info found' }, { status: 404 });
     }
 
-    const cityInfoIds = cityInfos.map((info) => info._id);
+    const cityInfoIds = cityInfos.map(info => info._id);
 
+    // ✅ Update views
     await CityInfo.updateMany(
       { _id: { $in: cityInfoIds } },
       { $inc: { 'engagement.views': 1 } }
@@ -57,4 +50,5 @@ async function handler(
   }
 }
 
+// ✅ Export with auth
 export const GET = withAuth(handler);
