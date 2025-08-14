@@ -48,6 +48,7 @@ export async function POST(req) {
       { expiresIn: '7d' }
     );
 
+    console.log(token);
     return NextResponse.json(
       {
         success: true,
