@@ -1,12 +1,8 @@
-
-
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import Blog from '@/models/Blog';
-import { withAuth } from '@/middleware/auth'; // ✅ Import middleware
 
-// Original logic wrapped in a handler
-async function handler() {
+export async function GET() {
   try {
     await connectToDatabase();
     const blogs = await Blog.find();
@@ -17,5 +13,3 @@ async function handler() {
   }
 }
 
-// ✅ Protected route using withAuth middleware
-export const GET = withAuth(handler);

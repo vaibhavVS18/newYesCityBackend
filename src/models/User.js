@@ -25,13 +25,31 @@ const userSchema = new mongoose.Schema({
     default: '/assets/default-avatar.jpg',
   },
 
+//  phone number
+// phone: {
+//   type: String,
+//   required: true,
+//   unique: true,
+// },
+// phoneVerified: {
+//   type: Boolean,
+//   default: false,
+// },
+// otp: {
+//   type: String,
+// },
+// otpExpiry: {
+//   type: Date,
+// },
+
+
   wishlist: [
   {
     parentRef: { type: mongoose.Schema.Types.ObjectId, required: true },
     onModel: {
       type: String,
       required: true,
-      enum: ['Accommodation', 'Activity', 'CityInfo', 'Connectivity', 'Contribution', 'Food', 'HiddenGem', 'Itinerary', 'Misc', 'NearbySpot', 'Place', 'Shop', 'Transport'],
+      enum: ['Accommodation', 'Activity', 'CityInfo', 'Connectivity',  'Food', 'HiddenGem', 'Itinerary', 'Misc', 'NearbySpot', 'Place', 'Shop', 'Transport'],
     },
   },
 ],

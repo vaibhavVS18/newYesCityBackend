@@ -7,7 +7,6 @@ import Accommodation from '@/models/CityRoutes/Accommodation';
 import Activity from '@/models/CityRoutes/Activity';
 import CityInfo from '@/models/CityRoutes/CityInfo';
 import Connectivity from '@/models/CityRoutes/Connectivity';
-import Contribution from '@/models/CityRoutes/Contribution';
 import Food from '@/models/CityRoutes/Food';
 import HiddenGem from '@/models/CityRoutes/HiddenGem';
 import Itinerary from '@/models/CityRoutes/Itinerary';
@@ -23,7 +22,6 @@ const modelMap = {
   activity: Activity,
   cityinfo: CityInfo,
   connectivity: Connectivity,
-  contribution: Contribution,
   food: Food,
   hiddengem: HiddenGem,
   itinerary: Itinerary,

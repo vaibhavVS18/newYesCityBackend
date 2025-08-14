@@ -46,7 +46,7 @@ async function handler(req) {
 }
 export const POST = withAuth(handler);
 
-
+// GET route
 export async function GET() {
   try {
     await connectToDatabase();

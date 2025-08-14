@@ -1,19 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server';
+// app/api/auth/signup/route.js
+
+import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken'; // ✅ ADDED
+import jwt from 'jsonwebtoken';
 import { connectToDatabase } from '@/lib/db';
 import User from '@/models/User';
 
-export async function POST(req: NextRequest) {
+export async function POST(req) {
   const body = await req.json();
   const {
     username,
     email,
     password,
-    isPremium, // ✅ Add this
-    referralCode,
-    referredBy,
-    profileImage,
+    isPremium,     // optional
+    referralCode,  // optional
+    referredBy,    // optional
+    profileImage,  // optional
   } = body;
 
   if (!username || !email || !password) {
@@ -34,15 +36,15 @@ export async function POST(req: NextRequest) {
       username,
       email,
       password: hashedPassword,
-      isPremium,       // ✅ Include this
-      referralCode,    // optional
-      referredBy,      // optional
-      profileImage,    // optional
+      isPremium,
+      referralCode,
+      referredBy,
+      profileImage,
     });
 
     const token = jwt.sign(
       { userId: user._id, email: user.email },
-      process.env.JWT_SECRET!,
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -55,7 +57,7 @@ export async function POST(req: NextRequest) {
           id: user._id,
           username: user.username,
           email: user.email,
-          isPremium: user.isPremium, // Optional: include this in response
+          isPremium: user.isPremium,
         },
       },
       { status: 201 }

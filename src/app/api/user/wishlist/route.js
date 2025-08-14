@@ -56,7 +56,6 @@ import Accommodation from '@/models/CityRoutes/Accommodation.js';
 import Activity from '@/models/CityRoutes/Activity.js';
 import CityInfo from '@/models/CityRoutes/CityInfo.js';
 import Connectivity from '@/models/CityRoutes/Connectivity.js';
-import Contribution from '@/models/CityRoutes/Contribution.js';
 import Food from '@/models/CityRoutes/Food.js';
 import HiddenGem from '@/models/CityRoutes/HiddenGem.js';
 import Itinerary from '@/models/CityRoutes/Itinerary.js';
@@ -71,7 +70,6 @@ const MODELS = {
   Activity,
   CityInfo,
   Connectivity,
-  Contribution,
   Food,
   HiddenGem,
   Itinerary,

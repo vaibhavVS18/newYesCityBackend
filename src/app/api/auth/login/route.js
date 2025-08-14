@@ -1,12 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+// app/api/auth/login/route.js
+
+import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { connectToDatabase } from '@/lib/db';
 import User from '@/models/User';
 
-const JWT_SECRET = process.env.JWT_SECRET!;
+const JWT_SECRET = process.env.JWT_SECRET;
 
-export async function POST(req: NextRequest) {
+export async function POST(req) {
   const body = await req.json();
   const { emailOrUsername, password } = body;
 
@@ -33,16 +35,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
     }
 
-    // ✅ Correct: use isPremium (not premium)
-const token = jwt.sign(
-  {
-    userId: user._id,
-    email: user.email,
-    isPremium: user.isPremium, // ✅ Include this
-  },
-  JWT_SECRET,
-  { expiresIn: '7d' }
-);
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        email: user.email,
+        isPremium: user.isPremium,
+      },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
     return NextResponse.json(
       {
