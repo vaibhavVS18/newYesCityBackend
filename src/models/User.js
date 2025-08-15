@@ -26,21 +26,11 @@ const userSchema = new mongoose.Schema({
   },
 
 //  phone number
-// phone: {
-//   type: String,
-//   required: true,
-//   unique: true,
-// },
-// phoneVerified: {
-//   type: Boolean,
-//   default: false,
-// },
-// otp: {
-//   type: String,
-// },
-// otpExpiry: {
-//   type: Date,
-// },
+phone: {
+  type: String,
+  required: true,
+  unique: true,
+},
 
 
   wishlist: [

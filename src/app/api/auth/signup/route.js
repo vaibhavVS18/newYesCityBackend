@@ -12,16 +12,20 @@ export async function POST(req) {
     username,
     email,
     password,
+    phone,         // ✅ Added phone here
     isPremium,     // optional
     referralCode,  // optional
     referredBy,    // optional
     profileImage,  // optional
   } = body;
 
-  if (!username || !email || !password) {
-    return NextResponse.json({ message: 'All fields are required' }, { status: 400 });
+  if (!username || !email || !password || !phone) {
+    return NextResponse.json(
+      { message: 'All fields are required (including phone)' },
+      { status: 400 }
+    );
   }
-
+./gyfotf
   await connectToDatabase();
 
   try {
@@ -30,12 +34,19 @@ export async function POST(req) {
       return NextResponse.json({ message: 'Email already in use' }, { status: 409 });
     }
 
+    // Optional: Check if phone is already in use
+    const existingPhone = await User.findOne({ phone });
+    if (existingPhone) {
+      return NextResponse.json({ message: 'Phone number already in use' }, { status: 409 });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12);
 
     const user = await User.create({
       username,
       email,
       password: hashedPassword,
+      phone,         // ✅ Save phone to database
       isPremium,
       referralCode,
       referredBy,
@@ -43,7 +54,7 @@ export async function POST(req) {
     });
 
     const token = jwt.sign(
-      { userId: user._id, email: user.email },
+      { userId: user._id, email: user.email, phone: user.phone },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -58,6 +69,7 @@ export async function POST(req) {
           id: user._id,
           username: user.username,
           email: user.email,
+          phone: user.phone,
           isPremium: user.isPremium,
         },
       },
