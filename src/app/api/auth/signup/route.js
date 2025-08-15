@@ -25,7 +25,6 @@ export async function POST(req) {
       { status: 400 }
     );
   }
-./gyfotf
   await connectToDatabase();
 
   try {

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import City from '@/models/City';
-import CityInfo from '@/models/CityInfo';
+import CityInfo from '@/models/CityRoutes/CityInfo';
 
 export async function GET(request, context) {
   try {
