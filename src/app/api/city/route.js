@@ -8,7 +8,7 @@ export async function GET() {
     await connectToDatabase();
 
     // ✅ Fetch all cities
-    const cities = await City.find({}).select("city-name engagement content");
+    const cities = await City.find({}).select("cityName content cover-image");
 
     return NextResponse.json({
       success: true,
