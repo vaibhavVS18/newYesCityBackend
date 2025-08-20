@@ -7,10 +7,14 @@ const { Schema } = mongoose;
 // Shopping Schema
 const shoppingSchema = new Schema({
     cityId: { type: Schema.Types.ObjectId, ref: 'City', required: true },
-            cityName: { type: String }, // Optional, for quick access or display
+    cityName: { type: String }, // Optional, for quick access or display
 
-  engagement: {views: { type: Number, default: 0 },},
-  // ✅ Add array of Review references
+  engagement: {
+    views: { type: Number, default: 0 },
+    viewedBy: [{ type: Schema.Types.ObjectId, ref: "User" }]
+  },
+
+  flagShip: {type: Boolean, default: false},
   reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
 
   shops: { type: String, required: true },

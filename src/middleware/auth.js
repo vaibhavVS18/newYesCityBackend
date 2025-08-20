@@ -22,7 +22,7 @@ export function withAuth(handler) {
 
     const token = authHeader.split(' ')[1];
     const decoded = verifyToken(token);
-
+    console.log(decoded);
     if (!decoded) {
       return NextResponse.json({ message: 'Invalid or expired token' }, { status: 403 });
     }

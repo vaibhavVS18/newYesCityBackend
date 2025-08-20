@@ -5,19 +5,18 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { connectToDatabase } from '@/lib/db';
 import User from '@/models/User';
+import { extendUserPremium } from "@/lib/extendPremium";
+
 
 export async function POST(req) {
-  const body = await req.json();
-  const {
-    username,
-    email,
-    password,
-    phone,         // ✅ Added phone here
-    isPremium,     // optional
-    referralCode,  // optional
-    referredBy,    // optional
-    profileImage,  // optional
-  } = body;
+  let body;
+  try {
+    body = await req.json();
+  } catch (err) {
+    return NextResponse.json({ message: 'Invalid JSON body' }, { status: 400 });
+  }
+
+  const { username, email, password, phone, referredBy, profileImage } = body;
 
   if (!username || !email || !password || !phone) {
     return NextResponse.json(
@@ -25,40 +24,62 @@ export async function POST(req) {
       { status: 400 }
     );
   }
+
   await connectToDatabase();
 
   try {
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    // Check duplicates
+    if (await User.findOne({ email })) {
       return NextResponse.json({ message: 'Email already in use' }, { status: 409 });
     }
 
-    // Optional: Check if phone is already in use
-    const existingPhone = await User.findOne({ phone });
-    if (existingPhone) {
+    if (await User.findOne({ phone })) {
       return NextResponse.json({ message: 'Phone number already in use' }, { status: 409 });
     }
 
+    let referredByUserId = null;
+
+    if (referredBy) {
+      const refUser = await User.findOne({ referralCode: referredBy });
+      if (refUser) {
+        referredByUserId = refUser._id;
+
+        // Increment referral count
+        refUser.referralCount += 1;
+        await refUser.save();
+
+      // inside signup route after incrementing referral count
+      try {
+        await extendUserPremium(refUser._id); // direct call
+      } catch (err) {
+        console.error("Failed to extend referrer premium:", err);
+      }
+
+      }
+    }
+
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    // Create user
     const user = await User.create({
       username,
       email,
       password: hashedPassword,
-      phone,         // ✅ Save phone to database
-      isPremium,
-      referralCode,
-      referredBy,
+      phone,
+      referralCode: phone, // use phone as referral code
+      referredBy: referredByUserId,
       profileImage,
+      isPremium: 'FREE', // default value
     });
 
+    // Sign JWT
     const token = jwt.sign(
       { userId: user._id, email: user.email, phone: user.phone },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    console.log(token);
     return NextResponse.json(
       {
         success: true,
@@ -69,7 +90,9 @@ export async function POST(req) {
           username: user.username,
           email: user.email,
           phone: user.phone,
-          isPremium: user.isPremium,
+          referralCode: user.referralCode,
+          referredBy: user.referredBy,
+          isPremium: user.isPremium
         },
       },
       { status: 201 }

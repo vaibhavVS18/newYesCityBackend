@@ -23,11 +23,20 @@ async function handler(req, context) {
 
     const accessiblePremiums = getAccessiblePremiums(userPremium);
 
-    // ✅ Query with premium filtering
+    // ✅ Get query params for pagination
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = 5; // same limit as others
+    const skip = (page - 1) * limit;
+
+    // ✅ Query with premium filtering + pagination
     const cityInfos = await CityInfo.find({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
-      premium: { $in: accessiblePremiums }
-    });
+      premium: { $in: accessiblePremiums },
+    })
+      .select('_id cityName state/union-territory alternate-names languages-spoken climate-info best-time-to-visit city-history cover-image premium')
+      .skip(skip)
+      .limit(limit);
 
     if (!cityInfos.length) {
       return NextResponse.json({ error: 'No city info found' }, { status: 404 });
@@ -41,9 +50,21 @@ async function handler(req, context) {
       { $inc: { 'engagement.views': 1 } }
     );
 
-    const updated = await CityInfo.find({ _id: { $in: cityInfoIds } });
+    // ✅ Get total count for pagination info
+    const total = await CityInfo.countDocuments({
+      cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
+      premium: { $in: accessiblePremiums },
+    });
 
-    return NextResponse.json(updated);
+    return NextResponse.json({
+      data: cityInfos,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error('Error fetching city info:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

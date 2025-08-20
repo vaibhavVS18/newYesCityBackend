@@ -6,9 +6,14 @@ const { Schema } = mongoose;
 const accommodationSchema = new Schema({
   cityId: { type: Schema.Types.ObjectId, ref: 'City', required: true },
   cityName: { type: String }, // Optional, for quick access or display
-  engagement: { views: { type: Number, default: 0 } },
 
-  // ✅ Array of Review references
+  // ✅ Engagement tracking
+  engagement: {
+    views: { type: Number, default: 0 },
+    viewedBy: [{ type: Schema.Types.ObjectId, ref: "User" }]
+  },
+
+    // flagShip: {type: Boolean, //: false},
   reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
 
   hotels: { type: String, required: true },
@@ -20,17 +25,18 @@ const accommodationSchema = new Schema({
   facilities: { type: String },
   image0: { type: String },
   image1: { type: String },
-  image2: {type: String},
+  image2: { type: String },
 
-  // ✅ New premium field with enum
+  // ✅ Premium access field
   premium: {
     type: String,
     enum: ["FREE", "A", "B"],
-    default: "FREE" // Optional: set default
+    default: "FREE"
   },
 });
 
 // ✅ Proper model check
-const Accommodation = mongoose.models.Accommodation || mongoose.model("Accommodation", accommodationSchema);
+const Accommodation =
+  mongoose.models.Accommodation || mongoose.model("Accommodation", accommodationSchema);
 
 export default Accommodation;

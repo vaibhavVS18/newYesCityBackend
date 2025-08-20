@@ -7,7 +7,10 @@ const generalCityInfoSchema = new Schema({
   cityId: { type: Schema.Types.ObjectId, ref: 'City', required: true },
     reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
 
-  engagement: { views: { type: Number, default: 0 } },
+  engagement: {
+    views: { type: Number, default: 0 },
+    viewedBy: [{ type: Schema.Types.ObjectId, ref: "User" }]
+  },
  
   "cityName": { type: String, required: true },
   "state/union-territory": { type: String, required: true },

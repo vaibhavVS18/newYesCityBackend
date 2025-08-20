@@ -9,7 +9,10 @@ const { Schema } = mongoose;
 const hiddenGemsSchema = new Schema({
     cityId: { type: Schema.Types.ObjectId, ref: 'City', required: true },
         cityName: { type: String }, // Optional, for quick access or display
-  engagement: {views: { type: Number, default: 0 },},
+  engagement: {
+    views: { type: Number, default: 0 },
+    viewedBy: [{ type: Schema.Types.ObjectId, ref: "User" }]
+  },
     reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
 
   "hidden-gems": { type: String, required: true },

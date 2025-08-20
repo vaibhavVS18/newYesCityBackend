@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import Activity from '@/models/CityRoutes/Activity';
-import { withAuth } from '@/middleware/auth'; // ✅ Include auth middleware
+import { withAuth } from '@/middleware/auth';
 
 // ✅ Helper to get allowed tiers
 function getAccessiblePremiums(userPremium) {
@@ -25,25 +25,47 @@ async function handler(req, context) {
     // ✅ Apply premium-based filter
     const accessiblePremiums = getAccessiblePremiums(userPremium);
 
+    // ✅ Get query params for pagination
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = 5; // same as accommodations
+    const skip = (page - 1) * limit;
+
+    // ✅ Find activities with pagination
     const activities = await Activity.find({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
-      premium: { $in: accessiblePremiums }
-    });
+      premium: { $in: accessiblePremiums },
+    })
+      .select('_id reviews top-activities best-places description essential fee image video premium') // choose fields
+      .skip(skip)
+      .limit(limit);
 
     if (!activities.length) {
       return NextResponse.json({ error: 'No activities found' }, { status: 404 });
     }
 
+    // ✅ Update engagement views
     const activityIds = activities.map(act => act._id);
-
     await Activity.updateMany(
       { _id: { $in: activityIds } },
       { $inc: { 'engagement.views': 1 } }
     );
 
-    const updated = await Activity.find({ _id: { $in: activityIds } });
+    // ✅ Get total count for pagination info
+    const total = await Activity.countDocuments({
+      cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
+      premium: { $in: accessiblePremiums },
+    });
 
-    return NextResponse.json(updated);
+    return NextResponse.json({
+      data: activities,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error('Error fetching activities:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { connectToDatabase } from '@/lib/db';
 import Review from '@/models/Review';
 
@@ -31,7 +32,7 @@ const MODELS = {
   Transport,
 };
 
-export async function POST(req) {
+async function handler(req) {
   try {
     await connectToDatabase();
 
@@ -39,6 +40,7 @@ export async function POST(req) {
     const { rating, content, createdBy, cityName, onModel, parentRef } = body;
     const date = new Date();
 
+    // ✅ Validate required fields
     if (!rating || !content || !createdBy || !cityName || !onModel || !parentRef) {
       return new Response(
         JSON.stringify({ message: 'All fields are required.', success: false }),
@@ -46,11 +48,23 @@ export async function POST(req) {
       );
     }
 
+    // ✅ Ensure model exists (case-sensitive safe)
     const Model = MODELS[onModel];
-
     if (!Model) {
+      console.error('Invalid model type:', onModel);
       return new Response(
         JSON.stringify({ message: 'Invalid model type.', success: false }),
+        { status: 400 }
+      );
+    }
+
+    // ✅ Cast parentRef to ObjectId
+    let parentObjectId;
+    try {
+      parentObjectId = new mongoose.Types.ObjectId(parentRef);
+    } catch (err) {
+      return new Response(
+        JSON.stringify({ message: 'Invalid parentRef ID.', success: false }),
         { status: 400 }
       );
     }
@@ -61,17 +75,24 @@ export async function POST(req) {
       content,
       createdBy,
       date,
-      cityName: decodeURIComponent(cityName).toLowerCase(),
-      parentRef,
+      cityName: decodeURIComponent(cityName), // keep original case
+      parentRef: parentObjectId,
       onModel,
     });
 
-    // ✅ Add the review to the correct document
-    await Model.findByIdAndUpdate(
-      parentRef,
+    // ✅ Add the review to the correct parent document
+    const updatedDoc = await Model.findByIdAndUpdate(
+      parentObjectId,
       { $push: { reviews: newReview._id } },
       { new: true }
     );
+
+    if (!updatedDoc) {
+      return new Response(
+        JSON.stringify({ message: 'Parent document not found.', success: false }),
+        { status: 404 }
+      );
+    }
 
     return new Response(
       JSON.stringify({
@@ -90,4 +111,4 @@ export async function POST(req) {
   }
 }
 
-// export const POST = withAuth(handler);
+export const POST = withAuth(handler);

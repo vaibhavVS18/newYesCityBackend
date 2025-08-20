@@ -20,25 +20,40 @@ async function handler(req, context) {
 
     const accessiblePremiums = getAccessiblePremiums(userPremium);
 
+    // ✅ Get query params for pagination
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = 5;
+    const skip = (page - 1) * limit;
+
+    // ✅ Find accommodations with pagination
     const accommodations = await Accommodation.find({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
-      premium: { $in: accessiblePremiums }, // Filter based on premium
-    });
+      premium: { $in: accessiblePremiums },
+    })
+      .select('_id hotels types-of-room-price image0 premium')
+      .skip(skip)
+      .limit(limit);
 
     if (!accommodations.length) {
       return NextResponse.json({ error: 'No accommodations found' }, { status: 404 });
     }
 
-    const accommodationIds = accommodations.map(acc => acc._id);
+    // ✅ Get total count for pagination info
+    const total = await Accommodation.countDocuments({
+      cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
+      premium: { $in: accessiblePremiums },
+    });
 
-    await Accommodation.updateMany(
-      { _id: { $in: accommodationIds } },
-      { $inc: { 'engagement.views': 1 } }
-    );
-
-    const updated = await Accommodation.find({ _id: { $in: accommodationIds } });
-
-    return NextResponse.json(updated);
+    return NextResponse.json({
+      data: accommodations,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error('Error fetching accommodations:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

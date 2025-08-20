@@ -1,7 +1,6 @@
 import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema({
-
   email: {
     type: String,
     required: true,
@@ -14,53 +13,59 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    // Not required because Google users won't have a password
   },
   googleId: {
     type: String,
-    // For Google authenticated users
   },
   profileImage: {
     type: String,
     default: '/assets/default-avatar.jpg',
   },
-
-//  phone number
-phone: {
-  type: String,
-  required: true,
-  unique: true,
-},
-
-
-  wishlist: [
-  {
-    parentRef: { type: mongoose.Schema.Types.ObjectId, required: true },
-    onModel: {
-      type: String,
-      required: true,
-      enum: ['Accommodation', 'Activity', 'CityInfo', 'Connectivity',  'Food', 'HiddenGem', 'Itinerary', 'Misc', 'NearbySpot', 'Place', 'Shop', 'Transport'],
-    },
+  phone: {
+    type: String,
+    required: true,
+    unique: true,
   },
-],
-
-  // ✅ New premium field with enum
+  wishlist: [
+    {
+      parentRef: { type: mongoose.Schema.Types.ObjectId, required: true },
+      onModel: {
+        type: String,
+        required: true,
+        enum: [
+          'Accommodation',
+          'Activity',
+          'CityInfo',
+          'Connectivity',
+          'Food',
+          'HiddenGem',
+          'Itinerary',
+          'Misc',
+          'NearbySpot',
+          'Place',
+          'Shop',
+          'Transport',
+        ],
+      },
+    },
+  ],
   isPremium: {
     type: String,
-    enum: ["FREE", "A", "B"],
-    default: "FREE" // Optional: set default
+    enum: ['FREE', 'A', 'B'],
+    default: 'FREE',
   },
-
-  premiumStartDate: {
-    type: Date,
-  },
-  premiumExpiryDate: {
-    type: Date,
-  },
+premiumStartDate: {
+  type: Date,
+  default: Date.now,
+},
+premiumExpiryDate: {
+  type: Date,
+  default: null,   // 👈 means "infinite / no expiry"
+},
   referralCode: {
     type: String,
     unique: true,
-    sparse: true, // avoids unique constraint errors for null
+    sparse: true,
   },
   referredBy: {
     type: String,
@@ -81,7 +86,6 @@ phone: {
     type: Date,
     default: Date.now,
   },
-
   resetToken: String,
   resetTokenExpiry: Date,
 });

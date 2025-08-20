@@ -4,8 +4,12 @@ const { Schema } = mongoose;
 
 // City Schema
 const citySchema = new Schema({
- "city-name": { type: String, required: true },
-  engagement: {views: { type: Number, default: 0 },},
+  engagement: {
+    views: { type: Number, default: 0 },
+    viewedBy: [{ type: Schema.Types.ObjectId, ref: "User" }]
+  },  
+ "cityName": { type: String, required: true },
+ "cover-image": { type: String, required: true },
   content: {type: String},
 });
 

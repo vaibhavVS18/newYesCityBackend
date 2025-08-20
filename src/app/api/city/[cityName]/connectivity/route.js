@@ -23,11 +23,20 @@ async function handler(req, context) {
 
     const accessiblePremiums = getAccessiblePremiums(userPremium);
 
-    // ✅ Filter connectivity by city and premium tier
+    // ✅ Get query params for pagination
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = 5; // consistent across routes
+    const skip = (page - 1) * limit;
+
+    // ✅ Filter connectivity by city and premium tier with pagination
     const connectivityRecords = await Connectivity.find({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
-      premium: { $in: accessiblePremiums }
-    });
+      premium: { $in: accessiblePremiums },
+    })
+      .select('_id reviews nearest-airport/station/bus-stand distance lat-lon location-link major-flights/trains/buses premium')
+      .skip(skip)
+      .limit(limit);
 
     if (!connectivityRecords.length) {
       return NextResponse.json({ error: 'No connectivity data found' }, { status: 404 });
@@ -41,9 +50,21 @@ async function handler(req, context) {
       { $inc: { 'engagement.views': 1 } }
     );
 
-    const updated = await Connectivity.find({ _id: { $in: connectivityIds } });
+    // ✅ Get total count for pagination metadata
+    const total = await Connectivity.countDocuments({
+      cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
+      premium: { $in: accessiblePremiums },
+    });
 
-    return NextResponse.json(updated);
+    return NextResponse.json({
+      data: connectivityRecords,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error('Error fetching connectivity:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

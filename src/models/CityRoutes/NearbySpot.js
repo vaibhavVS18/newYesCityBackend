@@ -7,10 +7,14 @@ const { Schema } = mongoose;
 const nearbyTouristSpotSchema = new Schema({
     cityId: { type: Schema.Types.ObjectId, ref: 'City', required: true },
             cityName: { type: String }, // Optional, for quick access or display
-  reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
             
-  engagement: {views: { type: Number, default: 0 },},
+  engagement: {
+    views: { type: Number, default: 0 },
+    viewedBy: [{ type: Schema.Types.ObjectId, ref: "User" }]
+  },
   
+  reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
+
   places: { type: String, required: true },
   distance: { type: String, required: true },
   category: { type: String, required: true },
