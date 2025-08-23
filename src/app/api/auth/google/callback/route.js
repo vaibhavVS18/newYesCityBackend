@@ -141,7 +141,7 @@ export async function GET(req) {
     );
 
     // Redirect to frontend with token
-    const redirectUrl = `${process.env.FRONTEND_URL}/auth/google/callback?token=${token}`;
+    const redirectUrl = `${process.env.FRONTEND_URL}/?token=${token}`;
     return NextResponse.redirect(redirectUrl);
 
   } catch (error) {
