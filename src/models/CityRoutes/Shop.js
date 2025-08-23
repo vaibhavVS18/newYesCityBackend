@@ -2,42 +2,43 @@ import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
-
-
 // Shopping Schema
 const shoppingSchema = new Schema({
-    cityId: { type: Schema.Types.ObjectId, ref: 'City', required: true },
-    cityName: { type: String }, // Optional, for quick access or display
+  cityId: { type: Schema.Types.ObjectId, ref: "City", required: true },
+  cityName: { type: String }, // Optional, for quick access or display
 
   engagement: {
     views: { type: Number, default: 0 },
-    viewedBy: [{ type: Schema.Types.ObjectId, ref: "User" }]
+    viewedBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
   },
 
-  flagShip: {type: Boolean, default: false},
-  reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
+  flagship: { type: Boolean, default: false },
+  reviews: [{ type: Schema.Types.ObjectId, ref: "Review" }],
 
   shops: { type: String, required: true },
-  "lat-lon": { type: String, required: true },
+
+  lat: { type: Number, required: true },
+  lon: { type: Number, required: true },
+
   address: { type: String, required: true },
-  "location-link": { type: String },
-  "famous-for": { type: String },
-  "price-range": { type: String },
-  "open-day": { type: String },
-  "open-time": { type: String },
+  locationLink: { type: String },
+  famousFor: { type: String },
+  priceRange: { type: String },
+  openDay: { type: String },
+  openTime: { type: String },
   phone: { type: String },
   website: { type: String },
-  image0: { type: String },
-  image1: { type: String },
-  image2: { type: String },
 
-    // ✅ New premium field with enum
+  images: [{ type: String }],
+
   premium: {
     type: String,
     enum: ["FREE", "A", "B"],
-    default: "FREE" // Optional: set default
+    default: "FREE",
   },
 });
 
-const Shopping = mongoose.models.Shopping || mongoose.model("Shopping", shoppingSchema);
+const Shopping =
+  mongoose.models.Shopping || mongoose.model("Shopping", shoppingSchema);
+
 export default Shopping;

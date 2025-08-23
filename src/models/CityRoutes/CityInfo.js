@@ -2,33 +2,32 @@ import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
-// General City Info Schema
 const generalCityInfoSchema = new Schema({
   cityId: { type: Schema.Types.ObjectId, ref: 'City', required: true },
-    reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
+  reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
 
   engagement: {
     views: { type: Number, default: 0 },
     viewedBy: [{ type: Schema.Types.ObjectId, ref: "User" }]
   },
  
-  "cityName": { type: String, required: true },
-  "state/union-territory": { type: String, required: true },
-  "alternate-names": { type: String },
-  "languages-spoken": { type: String, required: true },
-  "climate-info": { type: String, required: true },
-  "best-time-to-visit": { type: String, required: true },
-  "city-history": { type: String, required: true },
-  "cover-image": { type: String, required: true },
+  cityName: { type: String, required: true },
+  stateOrUT: { type: String, required: true },
+  alternateNames: [{ type: String }],
+  languagesSpoken: [{ type: String, required: true }],
+  climateInfo: { type: String, required: true },
+  bestTimeToVisit: { type: String, required: true },
+  cityHistory: { type: String, required: true },
+  coverImage: { type: String, required: true },
 
-    // ✅ New premium field with enum
   premium: {
     type: String,
     enum: ["FREE", "A", "B"],
-    default: "FREE" // Optional: set default
+    default: "FREE"
   },
 });
 
-// ✅ Export with proper model check
-const CityInfo = mongoose.models.CityInfo || mongoose.model("CityInfo", generalCityInfoSchema);
+const CityInfo =
+  mongoose.models.CityInfo || mongoose.model("CityInfo", generalCityInfoSchema);
+
 export default CityInfo;

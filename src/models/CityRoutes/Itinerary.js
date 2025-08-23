@@ -16,9 +16,9 @@ const itinerarySchema = new Schema({
   },
     reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
 
-  day1: { type: String, required: true },
-  day2: { type: String, required: true },
-  day3: { type: String, required: true },
+  day1: { type: String},
+  day2: { type: String},
+  day3: { type: String},
 
     // ✅ New premium field with enum
   premium: {

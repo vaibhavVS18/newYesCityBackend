@@ -2,50 +2,51 @@ import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
-
-
-// Food Schema
 const foodSchema = new Schema({
-    cityId: { type: Schema.Types.ObjectId, ref: 'City', required: true },
-    cityName: { type: String , default: false}, // Optional, for quick access or display
+  cityId: { type: Schema.Types.ObjectId, ref: "City", required: true },
+  cityName: { type: String },
+
   engagement: {
     views: { type: Number, default: 0 },
     viewedBy: [{ type: Schema.Types.ObjectId, ref: "User" }]
   },
-  flagShip: {type: Boolean, default: false},
 
-  // ✅ Add array of Review references
-  reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
+  flagship: { type: Boolean, default: false },
 
-  "food-place": { type: String, required: true },
-  "lat-lon": { type: String, required: true },
+  reviews: [{ type: Schema.Types.ObjectId, ref: "Review" }],
+
+  foodPlace: { type: String, required: true },
+  lat: { type: Number, required: true },
+  lon: { type: Number, required: true },
   address: { type: String, required: true },
-  "location-link": { type: String },
+  locationLink: { type: String },
+
   category: { type: String },
-  "veg/non-veg": { type: String },
-  "value-for-money": { type: Number },
-  service: { type: Number },
-  taste: { type: Number },
-  hygiene: { type: Number },
-  "menu-special": { type: String },
-  "menu-link": { type: String },
-  "open-day": { type: String },
-  "open-time": { type: String },
+  vegOrNonVeg: { type: String, enum: ["Veg", "Non-Veg", "Both"] },
+
+  valueForMoney: { type: Number, min: 1, max: 5 },
+  service: { type: Number, min: 1, max: 5 },
+  taste: { type: Number, min: 1, max: 5 },
+  hygiene: { type: Number, min: 1, max: 5 },
+
+  menuSpecial: { type: String },
+  menuLink: { type: String },
+  openDay: { type: String },
+  openTime: { type: String },
   phone: { type: String },
   website: { type: String },
   description: { type: String },
-  image0: { type: String },
-  image1: { type: String },
-  image2: { type: String },
-  video: { type: String },
 
-    // ✅ New premium field with enum
+  images: [{ type: String }],
+  videos: [{ type: String }],
+
   premium: {
     type: String,
     enum: ["FREE", "A", "B"],
-    default: "FREE" // Optional: set default
-  },
+    default: "FREE"
+  }
 });
 
 const Food = mongoose.models.Food || mongoose.model("Food", foodSchema);
+
 export default Food;

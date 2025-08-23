@@ -14,22 +14,32 @@ async function handler(req) {
     // 90 days in ms
     const ninetyDays = 90 * 24 * 60 * 60 * 1000;
 
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      {
-        isPremium: "A",
-        premiumStartDate: new Date(),
-        premiumExpiryDate: new Date(Date.now() + ninetyDays),
-      },
-      { new: true } // return updated doc
-    );
-
-    if (!updatedUser) {
+    // 👇 fetch current user
+    const user = await User.findById(userId);
+    if (!user) {
       return NextResponse.json(
         { success: false, message: "User not found" },
         { status: 404 }
       );
     }
+
+    let newStartDate = user.premiumStartDate;
+    let newExpiryDate;
+
+    if (user.isPremium === "A" && user.premiumExpiryDate) {
+      // ✅ already premium A → extend from current expiry
+      newExpiryDate = new Date(user.premiumExpiryDate.getTime() + ninetyDays);
+    } else {
+      // ✅ upgrading fresh → start today
+      newStartDate = new Date();
+      newExpiryDate = new Date(Date.now() + ninetyDays);
+    }
+
+    user.isPremium = "A";
+    user.premiumStartDate = newStartDate;
+    user.premiumExpiryDate = newExpiryDate;
+
+    const updatedUser = await user.save();
 
     return NextResponse.json({
       success: true,

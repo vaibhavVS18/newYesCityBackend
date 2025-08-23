@@ -2,30 +2,34 @@ import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
-// Connectivity (Transportation Hub) Schema
 const connectivitySchema = new Schema({
   cityId: { type: Schema.Types.ObjectId, ref: 'City', required: true },
-     cityName: { type: String }, // Optional, for quick access or display
+  cityName: { type: String },
+
   engagement: {
     views: { type: Number, default: 0 },
     viewedBy: [{ type: Schema.Types.ObjectId, ref: "User" }]
   },
-    reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
-  
-  "nearest-airport/station/bus-stand": { type: String, required: true },
-  distance: { type: String, required: true },
-  "lat-lon": { type: String, required: true },
-  "location-link": { type: String, required: true },
-  "major-flights/trains/buses": { type: String },
 
-    // ✅ New premium field with enum
+  reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
+
+  nearestAirportStationBusStand: { type: String },
+  distance: { type: String },
+
+  lat: { type: Number },
+  lon: { type: Number },
+
+  locationLink: { type: String},
+  majorFlightsTrainsBuses: { type: String },
+
   premium: {
     type: String,
     enum: ["FREE", "A", "B"],
-    default: "FREE" // Optional: set default
+    default: "FREE"
   },
 });
 
-// ✅ Export with proper model check
-const Connectivity = mongoose.models.Connectivity || mongoose.model("Connectivity", connectivitySchema);
+const Connectivity =
+  mongoose.models.Connectivity || mongoose.model("Connectivity", connectivitySchema);
+
 export default Connectivity;

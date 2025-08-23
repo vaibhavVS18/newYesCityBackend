@@ -2,33 +2,56 @@ import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
-
-// Miscellaneous Schema
 const miscellaneousSchema = new Schema({
-    cityId: { type: Schema.Types.ObjectId, ref: 'City', required: true },
-    cityName: { type: String }, // Optional, for quick access or display
+  cityId: { type: Schema.Types.ObjectId, ref: "City", required: true },
+  cityName: { type: String },
 
   engagement: {
     views: { type: Number, default: 0 },
     viewedBy: [{ type: Schema.Types.ObjectId, ref: "User" }]
   },
-    reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
-  
-  "local-map": { type: String },
-  "emergency-contacts": { type: String },
-  "hospitals/police-station": { type: String },
-  "location-link": { type: String },
-  "lat-lon": { type: String },
-  parking: { type: String },
-  "public-washrooms": { type: String },
 
-    // ✅ New premium field with enum
+  reviews: [{ type: Schema.Types.ObjectId, ref: "Review" }],
+
+  localMap: { type: String },
+  emergencyContacts: { type: String },
+
+  hospital: { type: String },
+  hospitalLocationLink: { type: String },
+  hospitalLat: { type: Number },
+  hospitalLon: { type: Number },
+
+  Police: { type: String },
+  PoliceLocationLink: { type: String },
+  PoliceLat: { type: Number },
+  PoliceLon: { type: Number },
+
+
+  parking: { type: String },
+  parkingLocationLink: {type: String},
+  parkingLat: { type: Number },
+  parkingLon: { type: Number },
+
+  publicWashrooms: { type: String },
+  publicWashroomsLocationLink: {type: String},
+  publicWashroomsLat: { type: Number },
+  publicWashroomsLon: { type: Number },
+
+  locker: {type: String},
+  lockerLocationLink: {type: String},
+  lockerLat: { type: Number },
+  lockerLon: { type: Number },
+
+
   premium: {
     type: String,
     enum: ["FREE", "A", "B"],
-    default: "FREE" // Optional: set default
-  },
+    default: "FREE"
+  }
 });
 
-const Miscellaneous = mongoose.models.Miscellaneous || mongoose.model("Miscellaneous", miscellaneousSchema);
+const Miscellaneous =
+  mongoose.models.Miscellaneous ||
+  mongoose.model("Miscellaneous", miscellaneousSchema);
+
 export default Miscellaneous;

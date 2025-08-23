@@ -2,44 +2,43 @@ import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
-
-
-
-// Hidden Gems Schema
 const hiddenGemsSchema = new Schema({
-    cityId: { type: Schema.Types.ObjectId, ref: 'City', required: true },
-        cityName: { type: String }, // Optional, for quick access or display
+  cityId: { type: Schema.Types.ObjectId, ref: "City", required: true },
+  cityName: { type: String },
+
   engagement: {
     views: { type: Number, default: 0 },
     viewedBy: [{ type: Schema.Types.ObjectId, ref: "User" }]
   },
-    reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
 
-  "hidden-gems": { type: String, required: true },
+  reviews: [{ type: Schema.Types.ObjectId, ref: "Review" }],
+
+  hiddenGem: { type: String, required: true },
   category: { type: String },
-  "lat-lon": { type: String, required: true },
+  lat: { type: Number, required: true },
+  lon: { type: Number, required: true },
   address: { type: String },
-  "location-link": { type: String },
-  "open-day": { type: String },
-  "open-time": { type: String },
-  "guide-availiblity": { type: String },
-  "establish-year": { type: String },
+  locationLink: { type: String },
+  openDay: { type: String },
+  openTime: { type: String },
+  guideAvailability: { type: String },
+  establishYear: { type: String },
   fee: { type: String },
   description: { type: String },
   essential: { type: String },
   story: { type: String },
-  image0: { type: String },
-  image1: { type: String },
-  image2: { type: String },
-  video: { type: String },
 
-    // ✅ New premium field with enum
+  images: [{ type: String }],
+  videos: [{ type: String }],
+
   premium: {
     type: String,
     enum: ["FREE", "A", "B"],
-    default: "FREE" // Optional: set default
-  },
+    default: "FREE"
+  }
 });
 
-const HiddenGem = mongoose.models.HiddenGem || mongoose.model("HiddenGem", hiddenGemsSchema);
+const HiddenGem =
+  mongoose.models.HiddenGem || mongoose.model("HiddenGem", hiddenGemsSchema);
+
 export default HiddenGem;

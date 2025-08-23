@@ -2,32 +2,28 @@ import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
-// Accommodation Schema
 const accommodationSchema = new Schema({
   cityId: { type: Schema.Types.ObjectId, ref: 'City', required: true },
-  cityName: { type: String }, // Optional, for quick access or display
+  cityName: { type: String },
 
-  // ✅ Engagement tracking
   engagement: {
     views: { type: Number, default: 0 },
     viewedBy: [{ type: Schema.Types.ObjectId, ref: "User" }]
   },
 
-    // flagShip: {type: Boolean, //: false},
+  flagship: {type: Boolean, default: false},
   reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
 
   hotels: { type: String, required: true },
-  "lat-lon": { type: String, required: true },
+  lat: { type: Number, required: true },
+  lon: { type: Number, required: true },
   address: { type: String, required: true },
-  "location-link": { type: String },
+  locationLink: { type: String },
   category: { type: String },
-  "types-of-room-price": { type: String },
+  roomTypes: { type: String },
   facilities: { type: String },
-  image0: { type: String },
-  image1: { type: String },
-  image2: { type: String },
+  images: [{ type: String }],
 
-  // ✅ Premium access field
   premium: {
     type: String,
     enum: ["FREE", "A", "B"],
@@ -35,7 +31,6 @@ const accommodationSchema = new Schema({
   },
 });
 
-// ✅ Proper model check
 const Accommodation =
   mongoose.models.Accommodation || mongoose.model("Accommodation", accommodationSchema);
 

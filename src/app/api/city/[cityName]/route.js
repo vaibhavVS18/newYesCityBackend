@@ -13,7 +13,7 @@ export async function GET(request, context) {
 
     // Increment city views and get city
     const updatedCity = await City.findOneAndUpdate(
-      { "city-name": new RegExp(`^${formattedCityName}$`, 'i') },
+      { "cityName": new RegExp(`^${formattedCityName}$`, 'i') },
       { $inc: { 'engagement.views': 1 } },
       { new: true }
     );
@@ -25,7 +25,7 @@ export async function GET(request, context) {
     // ✅ Fetch corresponding city info
     const cityInfo = await CityInfo.findOne({
       cityId: updatedCity._id
-    }).populate('reviews'); // populate reviews if needed
+    }); // populate reviews if needed
 
     return NextResponse.json({
       city: updatedCity,
