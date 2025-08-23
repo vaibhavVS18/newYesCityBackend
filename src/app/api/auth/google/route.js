@@ -9,7 +9,6 @@ export async function GET(req) {
     return NextResponse.json({ message: 'State parameter is required' }, { status: 400 });
   }
 
-  // Parse the state to get phone and referredBy
   let phone, referredBy;
   try {
     const parsedState = JSON.parse(state);
@@ -34,12 +33,11 @@ export async function GET(req) {
   oauthURL.searchParams.set('scope', 'openid email profile');
   oauthURL.searchParams.set('access_type', 'offline');
   oauthURL.searchParams.set('prompt', 'consent');
+  oauthURL.searchParams.set('state', JSON.stringify({ phone, referredBy: referredBy || null }));
 
-  // ✅ Pass both phone and referredBy in state parameter (Google will send this back in callback)
-  oauthURL.searchParams.set('state', JSON.stringify({ 
-    phone, 
-    referredBy: referredBy || null 
-  }));
+  // ✅ Debugging logs
+  console.log("🔍 redirect_uri being sent:", REDIRECT_URI);
+  console.log("🔍 Full Google OAuth URL:", oauthURL.toString());
 
   return NextResponse.redirect(oauthURL.toString());
 }
