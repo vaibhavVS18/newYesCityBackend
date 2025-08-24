@@ -1,17 +1,14 @@
-// next.config.ts
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // Other config options can go here (e.g., reactStrictMode, etc.)
-
   async headers() {
     return [
       {
-        source: '/api/:path*', // Apply to all API routes
+        source: '/api/:path*',
         headers: [
           {
             key: 'Access-Control-Allow-Origin',
-            value: 'http://localhost:3000', // 🔁 Replace with actual frontend URL
+            value: 'http://localhost:3000', // frontend URL
           },
           {
             key: 'Access-Control-Allow-Methods',
@@ -20,6 +17,10 @@ const nextConfig: NextConfig = {
           {
             key: 'Access-Control-Allow-Headers',
             value: 'Content-Type, Authorization',
+          },
+          {
+            key: 'Access-Control-Allow-Credentials',
+            value: 'true', // 🔑 required for cookies
           },
         ],
       },

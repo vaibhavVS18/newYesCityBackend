@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/db";
 import City from "@/models/City";
+import { withAuth } from '@/middleware/auth';
 
-export async function GET() {
+async function handler() {
   try {
     // ✅ Connect DB
     await connectToDatabase();
@@ -23,3 +24,5 @@ export async function GET() {
     );
   }
 }
+
+export const GET = withAuth(handler);

@@ -25,9 +25,9 @@ export async function GET(req) {
     referredBy = null;
   }
 
-  if (!phone) {
-    return NextResponse.json({ message: 'Phone number missing from state' }, { status: 400 });
-  }
+  // if (!phone) {
+  //   return NextResponse.json({ message: 'Phone number missing from state' }, { status: 400 });
+  // }
 
   try {
     // Step 1: Exchange code for access token
@@ -70,8 +70,9 @@ export async function GET(req) {
       $or: [{ email: profile.email }, { googleId: profile.id }],
     });
 
-    if (!user) {
-      // Handle referral logic
+   if (!user) {
+    if (phone) {
+      // ✅ Normal signup with phone (already in your code)
       let referredByUserId = null;
       if (referredBy) {
         const refUser = await User.findOne({ referralCode: referredBy });
@@ -81,15 +82,15 @@ export async function GET(req) {
           // Increment referral count and extend premium
           refUser.referralCount += 1;
           const extraDays = 30 * 24 * 60 * 60 * 1000;
-          refUser.premiumExpiryDate = refUser.premiumExpiryDate && refUser.premiumExpiryDate > new Date()
-            ? new Date(refUser.premiumExpiryDate.getTime() + extraDays)
-            : new Date(Date.now() + extraDays);
+          refUser.premiumExpiryDate =
+            refUser.premiumExpiryDate && refUser.premiumExpiryDate > new Date()
+              ? new Date(refUser.premiumExpiryDate.getTime() + extraDays)
+              : new Date(Date.now() + extraDays);
 
           await refUser.save();
         }
       }
 
-      // Use phone number as referral code
       const newReferralCode = phone;
 
       user = await User.create({
@@ -101,37 +102,15 @@ export async function GET(req) {
         isPhoneVerified: true,
         referredBy: referredByUserId,
         referralCode: newReferralCode,
-        password: '', // Google users don't need password
+        password: '',
       });
-    } else {
-      // Update existing user if phone or referredBy is missing
-      let updateFields = {};
-      if (!user.phone) {
-        updateFields.phone = phone;
-        updateFields.isPhoneVerified = true;
-      }
-
-      if (!user.referredBy && referredBy) {
-        const refUser = await User.findOne({ referralCode: referredBy });
-        if (refUser) {
-          updateFields.referredBy = refUser._id;
-
-          // Increment referral count and extend premium
-          refUser.referralCount += 1;
-          const extraDays = 30 * 24 * 60 * 60 * 1000;
-          refUser.premiumExpiryDate = refUser.premiumExpiryDate && refUser.premiumExpiryDate > new Date()
-            ? new Date(refUser.premiumExpiryDate.getTime() + extraDays)
-            : new Date(Date.now() + extraDays);
-
-          await refUser.save();
-        }
-      }
-
-      if (Object.keys(updateFields).length > 0) {
-        await User.findByIdAndUpdate(user._id, updateFields);
-        user = { ...user.toObject(), ...updateFields };
-      }
     }
+     else {
+      // 🚨 Case: user doesn’t exist AND no phone provided
+      const redirectUrl = `${process.env.FRONTEND_URL}/signup`;
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
 
     // Step 4: Generate JWT
     const token = jwt.sign(
@@ -140,9 +119,18 @@ export async function GET(req) {
       { expiresIn: '7d' }
     );
 
-    // Redirect to frontend with token
-    const redirectUrl = `${process.env.FRONTEND_URL}/auth/google/callback?token=${token}`;
-    return NextResponse.redirect(redirectUrl);
+    // Step 5: Create response + set cookie and redirect to frontend
+    const redirectUrl = `${process.env.FRONTEND_URL}/`;
+    const res =  NextResponse.redirect(redirectUrl);
+    res.cookies.set("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/", 
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+    });
+
+    return res;
 
   } catch (error) {
     console.error('Google OAuth callback error:', error);

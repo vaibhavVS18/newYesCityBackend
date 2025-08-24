@@ -1,5 +1,3 @@
-// app/api/auth/signup/route.js
-
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -7,6 +5,8 @@ import { connectToDatabase } from '@/lib/db';
 import User from '@/models/User';
 import { extendUserPremium } from "@/lib/extendPremium";
 
+// Add cookie util from Next.js
+import { cookies } from 'next/headers';
 
 export async function POST(req) {
   let body;
@@ -32,29 +32,22 @@ export async function POST(req) {
     if (await User.findOne({ email })) {
       return NextResponse.json({ message: 'Email already in use' }, { status: 409 });
     }
-
     if (await User.findOne({ phone })) {
       return NextResponse.json({ message: 'Phone number already in use' }, { status: 409 });
     }
 
     let referredByUserId = null;
-
     if (referredBy) {
       const refUser = await User.findOne({ referralCode: referredBy });
       if (refUser) {
         referredByUserId = refUser._id;
-
-        // Increment referral count
         refUser.referralCount += 1;
         await refUser.save();
-
-      // inside signup route after incrementing referral count
-      try {
-        await extendUserPremium(refUser._id); // direct call
-      } catch (err) {
-        console.error("Failed to extend referrer premium:", err);
-      }
-
+        try {
+          await extendUserPremium(refUser._id);
+        } catch (err) {
+          console.error("Failed to extend referrer premium:", err);
+        }
       }
     }
 
@@ -67,10 +60,10 @@ export async function POST(req) {
       email,
       password: hashedPassword,
       phone,
-      referralCode: phone, // use phone as referral code
+      referralCode: phone,
       referredBy: referredByUserId,
       profileImage,
-      isPremium: 'FREE', // default value
+      isPremium: 'FREE',
     });
 
     // Sign JWT
@@ -80,12 +73,11 @@ export async function POST(req) {
       { expiresIn: '7d' }
     );
 
-    console.log(token);
-    return NextResponse.json(
+    // Return response (without token in body)
+    const response =  NextResponse.json(
       {
         success: true,
         message: 'User registered and logged in successfully',
-        token,
         user: {
           id: user._id,
           username: user.username,
@@ -93,11 +85,24 @@ export async function POST(req) {
           phone: user.phone,
           referralCode: user.referralCode,
           referredBy: user.referredBy,
-          isPremium: user.isPremium
+          isPremium: user.isPremium,
         },
       },
       { status: 201 }
     );
+        // ✅ set cookie on the response
+    response.cookies.set({
+      name: 'token',
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+
+    return response;
+    
   } catch (err) {
     console.error('Signup error:', err);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });

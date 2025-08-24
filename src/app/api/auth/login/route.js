@@ -1,5 +1,4 @@
 // app/api/auth/login/route.js
-
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -45,12 +44,11 @@ export async function POST(req) {
       { expiresIn: '7d' }
     );
 
-    console.log(token);
-    return NextResponse.json(
+    // ✅ Create response first
+    const response = NextResponse.json(
       {
         success: true,
         message: 'Login successful',
-        token,
         user: {
           id: user._id,
           username: user.username,
@@ -60,6 +58,19 @@ export async function POST(req) {
       },
       { status: 200 }
     );
+
+    // ✅ Attach cookie on the response
+    response.cookies.set({
+      name: 'token',
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+
+    return response;
   } catch (err) {
     console.error('Login error:', err);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });

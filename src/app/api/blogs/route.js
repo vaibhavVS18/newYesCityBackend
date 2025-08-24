@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import Blog from '@/models/Blog';
+import { withAuth } from '@/middleware/auth';
 
-export async function GET() {
+
+async function handler() {
   try {
     await connectToDatabase();
     const blogs = await Blog.find();
@@ -13,3 +15,4 @@ export async function GET() {
   }
 }
 
+export const GET = withAuth(handler);

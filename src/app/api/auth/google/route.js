@@ -5,9 +5,9 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const state = searchParams.get('state');
 
-  if (!state) {
-    return NextResponse.json({ message: 'State parameter is required' }, { status: 400 });
-  }
+  // if (!state) {
+  //   return NextResponse.json({ message: 'State parameter is required' }, { status: 400 });
+  // }
 
   let phone, referredBy;
   try {
@@ -19,9 +19,9 @@ export async function GET(req) {
     return NextResponse.json({ message: 'Invalid state parameter' }, { status: 400 });
   }
 
-  if (!phone) {
-    return NextResponse.json({ message: 'Phone number is required' }, { status: 400 });
-  }
+  // if (!phone) {
+  //   return NextResponse.json({ message: 'Phone number is required' }, { status: 400 });
+  // }
 
   const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
   const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI; // must match Google Console
