@@ -16,7 +16,7 @@ export async function GET(request, context) {
       { "cityName": new RegExp(`^${formattedCityName}$`, 'i') },
       { $inc: { 'engagement.views': 1 } },
       { new: true }
-    );
+    ).select("cityName content cover-image");;
 
     if (!updatedCity) {
       return NextResponse.json({ error: 'City not found' }, { status: 404 });
