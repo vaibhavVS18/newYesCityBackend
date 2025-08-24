@@ -10,7 +10,7 @@ async function handler(req, context) {
 
   try {
     const fieldsToSelect =
-      "_id reviews nearest-airport/station/bus-stand distance lat-lon location-link major-flights/trains/buses premium";
+      "_id cityName reviews nearestAirportStationBusStand distance lat lon locationLink majorFlightsTrainsBuses premium";
 
     // ✅ Always logged-in user (thanks to withAuth)
     const userId = req.user.userId;

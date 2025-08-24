@@ -10,7 +10,7 @@ async function handler(req, context) {
 
   try {
     const fieldsToSelect =
-      "_id hidden-gems category lat-lon address location-link open-day open-time guide-availiblity establish-year fee description essential story image0 image1 image2 video premium";
+      "_id cityName reviews hiddenGem category lat lon address locationLink openDay openTime guideAvailability establishYear fee description essential story images videos premium";
 
     // ✅ Always logged-in user (thanks to withAuth)
     const userId = req.user.userId;

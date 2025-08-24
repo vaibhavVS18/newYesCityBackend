@@ -10,7 +10,7 @@ async function handler(req, context) {
 
   try {
     const fieldsToSelect =
-      "_id cityName state/union-territory alternate-names languages-spoken climate-info best-time-to-visit city-history cover-image premium";
+      "_id cityName stateOrUT alternateNames languagesSpoken climateInfo bestTimeToVisit cityHistory coverImage premium";
 
     // ✅ Always logged-in user (thanks to withAuth)
     const userId = req.user.userId;

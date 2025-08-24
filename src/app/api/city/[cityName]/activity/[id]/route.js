@@ -9,7 +9,7 @@ async function handler(req, context) {
   await connectToDatabase();
 
   try {
-    const fieldsToSelect = "_id reviews top-activities best-places description essential fee image video premium";
+    const fieldsToSelect = "_id cityName reviews topActivities bestPlaces description essentials fee images videos premium";
     // ✅ Always logged-in user (thanks to withAuth)
     const userId = req.user.userId;
 

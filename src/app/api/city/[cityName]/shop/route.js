@@ -33,7 +33,7 @@ async function handler(req, context) {
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
     })
-      .select('_id flagShip reviews shops lat-lon address location-link famous-for price-range open-day open-time phone website image0 image1 image2 premium') // adjust fields if needed
+      .select('_id cityName flagship shops famousFor images premium') // adjust fields if needed
       .skip(skip)
       .limit(limit);
 

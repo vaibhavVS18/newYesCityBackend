@@ -10,7 +10,7 @@ async function handler(req, context) {
 
   try {
     const fieldsToSelect =
-      "_id reviews local-map emergency-contacts hospitals/police-station location-link lat-lon parking public-washrooms premium";
+      "_id cityName reviews localMap emergencyContacts hospital hospitalLocationLink hospitalLat hospitalLon Police PoliceLocationLink PoliceLat PoliceLon parking parkingLocationLink parkingLat parkingLon publicWashrooms publicWashroomsLocationLink publicWashroomsLat publicWashroomsLon locker lockerLocationLink lockerLat lockerLon premium";
 
     // ✅ Logged-in user
     const userId = req.user.userId;

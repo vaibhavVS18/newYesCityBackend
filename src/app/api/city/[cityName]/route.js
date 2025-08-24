@@ -23,9 +23,10 @@ export async function GET(request, context) {
     }
 
     // ✅ Fetch corresponding city info
-    const cityInfo = await CityInfo.findOne({
-      cityId: updatedCity._id
-    }); // populate reviews if needed
+const cityInfo = await CityInfo.findOne({ cityId: updatedCity._id })
+  .select('_id cityName stateOrUT alternateNames coverImage premium'); 
+  // select only the fields you want
+
 
     return NextResponse.json({
       city: updatedCity,

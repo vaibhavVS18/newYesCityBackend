@@ -33,7 +33,7 @@ async function handler(req, context) {
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
     })
-      .select('_id reviews places distance category lat-lon address location-link open-day open-time establish-year fee description essential story image0 image1 image2 video premium') // adjust fields to schema
+      .select('_id cityName places description images premium') // adjust fields to schema
       .skip(skip)
       .limit(limit);
 

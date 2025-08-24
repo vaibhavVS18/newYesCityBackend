@@ -34,7 +34,7 @@ async function handler(req, context) {
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
     })
-      .select('_id reviews nearest-airport/station/bus-stand distance lat-lon location-link major-flights/trains/buses premium')
+      .select('_id cityName nearestAirportStationBusStand distance premium')
       .skip(skip)
       .limit(limit);
 

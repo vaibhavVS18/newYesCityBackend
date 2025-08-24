@@ -81,7 +81,7 @@ async function handler(req, context) {
 
   try {
     const fieldsToSelect =
-      "reviews hotels lat-lon address location-link category types-of-room-price facilities image0 image1 image2 premium engagement";
+      "_id cityName flagship reviews hotels lat lon address locationLink category roomTypes facilities images premium";
 
     // ✅ Logged-in user
     const userId = req.user.userId;

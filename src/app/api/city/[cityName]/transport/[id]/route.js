@@ -10,7 +10,7 @@ async function handler(req, context) {
 
   try {
     const fieldsToSelect =
-      "_id reviews from to auto-price cab-price bike-price premium";
+      "_id cityName reviews from to autoPrice cabPrice bikePrice premium";
 
     // ✅ Logged-in user
     const userId = req.user.userId;
