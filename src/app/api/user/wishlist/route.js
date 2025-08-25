@@ -9,7 +9,9 @@ import { NextResponse } from 'next/server';
 export const POST = withAuth(async (req) => {
   await connectToDatabase();
   const { onModel, parentRef } = await req.json();
-  const userId = req.user.id;
+  console.log('req.user:', req.user);
+
+  const userId = req.user.userId;
 
   if (!onModel || !parentRef) {
     return NextResponse.json({ message: 'onModel and parentRef required' }, { status: 400 });
@@ -34,7 +36,7 @@ export const POST = withAuth(async (req) => {
 export const DELETE = withAuth(async (req) => {
   await connectToDatabase();
   const { onModel, parentRef } = await req.json();
-  const userId = req.user.id;
+  const userId = req.user.userId;
 
   if (!onModel || !parentRef) {
     return NextResponse.json({ message: 'onModel and parentRef required' }, { status: 400 });
@@ -80,19 +82,30 @@ const MODELS = {
   Transport,
 };
 
+import SELECT_FIELDS from "@/lib/selectFields.js";
+
 export const GET = withAuth(async (req) => {
   await connectToDatabase();
-  const userId = req.user.id;
+  const userId = req.user.userId;
 
   const user = await User.findById(userId).lean();
+  if (!user) {
+    return NextResponse.json({ message: "User not found" }, { status: 404 });
+  }
 
   const populated = await Promise.all(
     user.wishlist.map(async (item) => {
       try {
         const Model = MODELS[item.onModel];
-        const data = await Model.findById(item.parentRef).lean();
+        const selectFields = SELECT_FIELDS[item.onModel] || ""; // fallback if not defined
+
+        const data = await Model.findById(item.parentRef)
+          .select(selectFields)
+          .lean();
+
         return data ? { ...item, data } : null;
       } catch (e) {
+        console.error(`Error populating ${item.onModel}:`, e);
         return null;
       }
     })
@@ -103,3 +116,4 @@ export const GET = withAuth(async (req) => {
     wishlist: populated.filter(Boolean),
   });
 });
+

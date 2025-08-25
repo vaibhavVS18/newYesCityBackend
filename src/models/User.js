@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema({
   },
   profileImage: {
     type: String,
-    default: '/assets/default-avatar.jpg',
+    default: 'https://i.pinimg.com/736x/57/00/c0/5700c04197ee9a4372a35ef16eb78f4e.jpg',
   },
   phone: {
     type: String,
