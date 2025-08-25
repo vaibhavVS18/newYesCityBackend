@@ -28,6 +28,7 @@ const userSchema = new mongoose.Schema({
   },
   wishlist: [
     {
+      cityName: {type: String , required:true},
       parentRef: { type: mongoose.Schema.Types.ObjectId, required: true },
       onModel: {
         type: String,

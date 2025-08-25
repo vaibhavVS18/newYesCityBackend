@@ -4,47 +4,57 @@ import { withAuth } from '@/middleware/auth.js';
 import { NextResponse } from 'next/server';
 
 // ==========================
-// POST and DELETE routes
+// POST route
 // ==========================
 export const POST = withAuth(async (req) => {
   await connectToDatabase();
-  const { onModel, parentRef } = await req.json();
-  console.log('req.user:', req.user);
-
+  const { onModel, parentRef, cityName } = await req.json();
   const userId = req.user.userId;
 
-  if (!onModel || !parentRef) {
-    return NextResponse.json({ message: 'onModel and parentRef required' }, { status: 400 });
+  if (!onModel || !parentRef || !cityName) {
+    return NextResponse.json(
+      { message: 'onModel, parentRef and cityName are required' },
+      { status: 400 }
+    );
   }
 
   const user = await User.findById(userId);
 
   const alreadyExists = user.wishlist.some(
-    (item) => item.onModel === onModel && item.parentRef.toString() === parentRef
+    (item) =>
+      item.onModel === onModel &&
+      item.parentRef.toString() === parentRef &&
+      item.cityName === cityName
   );
 
   if (alreadyExists) {
     return NextResponse.json({ message: 'Already in wishlist' }, { status: 400 });
   }
 
-  user.wishlist.push({ onModel, parentRef });
+  user.wishlist.push({ onModel, parentRef, cityName });
   await user.save();
 
   return NextResponse.json({ success: true, message: 'Added to wishlist' });
 });
 
+// ==========================
+// DELETE route
+// ==========================
 export const DELETE = withAuth(async (req) => {
   await connectToDatabase();
-  const { onModel, parentRef } = await req.json();
+  const { onModel, parentRef, cityName } = await req.json();
   const userId = req.user.userId;
 
-  if (!onModel || !parentRef) {
-    return NextResponse.json({ message: 'onModel and parentRef required' }, { status: 400 });
+  if (!onModel || !parentRef || !cityName) {
+    return NextResponse.json(
+      { message: 'onModel, parentRef and cityName are required' },
+      { status: 400 }
+    );
   }
 
   await User.findByIdAndUpdate(userId, {
     $pull: {
-      wishlist: { onModel, parentRef },
+      wishlist: { onModel, parentRef, cityName },
     },
   });
 
@@ -84,36 +94,72 @@ const MODELS = {
 
 import SELECT_FIELDS from "@/lib/selectFields.js";
 
+import City from "@/models/City.js";
+
 export const GET = withAuth(async (req) => {
-  await connectToDatabase();
-  const userId = req.user.userId;
+  try {
+    await connectToDatabase();
+    const userId = req.user.userId;
 
-  const user = await User.findById(userId).lean();
-  if (!user) {
-    return NextResponse.json({ message: "User not found" }, { status: 404 });
+    const user = await User.findById(userId).lean();
+    if (!user) {
+      return NextResponse.json({ message: "User not found" }, { status: 404 });
+    }
+
+    // ✅ Step 1: Extract unique city names
+    const uniqueCities = [...new Set(user.wishlist.map((item) => item.cityName))];
+
+    // ✅ Step 2: Fetch city info for those unique cities
+    const cityInfos = await City.find({ cityName: { $in: uniqueCities } })
+      .select("cityName content cover-image") // match your schema keys
+      .lean();
+
+    return NextResponse.json({
+      success: true,
+      count: cityInfos.length,
+      cities: cityInfos,
+    });
+  } catch (error) {
+    console.error("Error fetching wishlist cities:", error);
+    return NextResponse.json(
+      { success: false, error: "Server error" },
+      { status: 500 }
+    );
   }
-
-  const populated = await Promise.all(
-    user.wishlist.map(async (item) => {
-      try {
-        const Model = MODELS[item.onModel];
-        const selectFields = SELECT_FIELDS[item.onModel] || ""; // fallback if not defined
-
-        const data = await Model.findById(item.parentRef)
-          .select(selectFields)
-          .lean();
-
-        return data ? { ...item, data } : null;
-      } catch (e) {
-        console.error(`Error populating ${item.onModel}:`, e);
-        return null;
-      }
-    })
-  );
-
-  return NextResponse.json({
-    success: true,
-    wishlist: populated.filter(Boolean),
-  });
 });
 
+
+
+// export const GET = withAuth(async (req) => {
+//   await connectToDatabase();
+//   const userId = req.user.userId;
+
+//   const user = await User.findById(userId).lean();
+//   if (!user) {
+//     return NextResponse.json({ message: "User not found" }, { status: 404 });
+//   }
+
+//   const populated = await Promise.all(
+//     user.wishlist.map(async (item) => {
+//       try {
+//         const Model = MODELS[item.onModel];
+//         const selectFields = SELECT_FIELDS[item.onModel] || "";
+
+//         const data = await Model.findById(item.parentRef)
+//           .select(selectFields)
+//           .lean();
+
+//         // keep cityName along with data
+//         return data ? { ...item, data } : null;
+//       } catch (e) {
+//         console.error(`Error populating ${item.onModel}:`, e);
+//         return null;
+//       }
+//     })
+//   );
+
+//   return NextResponse.json({
+//     success: true,
+//     wishlist: populated.filter(Boolean),
+//   });
+// });
