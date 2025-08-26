@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema({
   },
   wishlist: [
     {
-      cityName: {type: String , required:true},
+      cityName: { type: String, required: true },
       parentRef: { type: mongoose.Schema.Types.ObjectId, required: true },
       onModel: {
         type: String,
@@ -36,16 +36,11 @@ const userSchema = new mongoose.Schema({
         enum: [
           'Accommodation',
           'Activity',
-          'CityInfo',
-          'Connectivity',
           'Food',
           'HiddenGem',
-          'Itinerary',
-          'Misc',
           'NearbySpot',
           'Place',
           'Shop',
-          'Transport',
         ],
       },
     },
@@ -55,14 +50,14 @@ const userSchema = new mongoose.Schema({
     enum: ['FREE', 'A', 'B'],
     default: 'FREE',
   },
-premiumStartDate: {
-  type: Date,
-  default: Date.now,
-},
-premiumExpiryDate: {
-  type: Date,
-  default: null,   // 👈 means "infinite / no expiry"
-},
+  premiumStartDate: {
+    type: Date,
+    default: Date.now,
+  },
+  premiumExpiryDate: {
+    type: Date,
+    default: null, // means "infinite / no expiry"
+  },
   referralCode: {
     type: String,
     unique: true,
@@ -90,6 +85,12 @@ premiumExpiryDate: {
   resetToken: String,
   resetTokenExpiry: Date,
 });
+
+// ✅ Compound index to make wishlist items unique per user
+userSchema.index(
+  { _id: 1, "wishlist.parentRef": 1, "wishlist.onModel": 1 },
+  { unique: true, sparse: true }
+);
 
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 export default User;
