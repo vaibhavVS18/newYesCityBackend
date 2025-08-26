@@ -1,3 +1,4 @@
+"/api/reviews"
 import mongoose from 'mongoose';
 import { connectToDatabase } from '@/lib/db';
 import Review from '@/models/Review';
@@ -37,50 +38,51 @@ async function handler(req) {
     await connectToDatabase();
 
     const body = await req.json();
-    const { rating, content, createdBy, cityName, onModel, parentRef } = body;
+    const { rating, content, cityName, onModel, parentRef } = body;
     const date = new Date();
 
-    // ✅ Validate required fields
-    if (!rating || !content || !createdBy || !cityName || !onModel || !parentRef) {
+    // ✅ user comes from withAuth middleware
+    const userId = req.user?._id;  
+
+    if (!rating || !content || !userId || !cityName || !onModel || !parentRef) {
       return new Response(
-        JSON.stringify({ message: 'All fields are required.', success: false }),
+        JSON.stringify({ message: "All fields are required.", success: false }),
         { status: 400 }
       );
     }
 
-    // ✅ Ensure model exists (case-sensitive safe)
+    // ✅ Ensure model exists
     const Model = MODELS[onModel];
     if (!Model) {
-      console.error('Invalid model type:', onModel);
       return new Response(
-        JSON.stringify({ message: 'Invalid model type.', success: false }),
+        JSON.stringify({ message: "Invalid model type.", success: false }),
         { status: 400 }
       );
     }
 
-    // ✅ Cast parentRef to ObjectId
+    // ✅ Validate parentRef
     let parentObjectId;
     try {
       parentObjectId = new mongoose.Types.ObjectId(parentRef);
     } catch (err) {
       return new Response(
-        JSON.stringify({ message: 'Invalid parentRef ID.', success: false }),
+        JSON.stringify({ message: "Invalid parentRef ID.", success: false }),
         { status: 400 }
       );
     }
 
-    // ✅ Create the review
+    // ✅ Create review with userId
     const newReview = await Review.create({
       rating,
       content,
-      createdBy,
+      createdBy: userId,
       date,
-      cityName: decodeURIComponent(cityName), // keep original case
+      cityName: decodeURIComponent(cityName),
       parentRef: parentObjectId,
       onModel,
     });
 
-    // ✅ Add the review to the correct parent document
+    // ✅ Attach review to parent document
     const updatedDoc = await Model.findByIdAndUpdate(
       parentObjectId,
       { $push: { reviews: newReview._id } },
@@ -89,23 +91,23 @@ async function handler(req) {
 
     if (!updatedDoc) {
       return new Response(
-        JSON.stringify({ message: 'Parent document not found.', success: false }),
+        JSON.stringify({ message: "Parent document not found.", success: false }),
         { status: 404 }
       );
     }
 
     return new Response(
       JSON.stringify({
-        message: 'Review added successfully!',
+        message: "Review added successfully!",
         success: true,
         review: newReview,
       }),
       { status: 201 }
     );
   } catch (error) {
-    console.error('Error saving review:', error);
+    console.error("Error saving review:", error);
     return new Response(
-      JSON.stringify({ message: 'Internal Server Error', success: false }),
+      JSON.stringify({ message: "Internal Server Error", success: false }),
       { status: 500 }
     );
   }
