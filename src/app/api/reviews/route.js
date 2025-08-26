@@ -42,7 +42,7 @@ async function handler(req) {
     const date = new Date();
 
     // ✅ user comes from withAuth middleware
-    const userId = req.user?._id;  
+    const userId = req.user?.userId;  
     console.log(req.user);
 
     if (!rating || !content || !userId || !cityName || !onModel || !parentRef) {
