@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import CityInfo from '@/models/CityRoutes/CityInfo';
-import { withAuth } from '@/middleware/auth'; // ✅ Auth middleware
+import { withAuth } from '@/middleware/auth';
 
 // ✅ Premium access helper
 function getAccessiblePremiums(userPremium) {
@@ -10,26 +10,24 @@ function getAccessiblePremiums(userPremium) {
   return ['FREE'];
 }
 
-async function handler(req, context) {
+// ✅ Core handler (works for both public & authenticated users)
+async function coreHandler(req, context, user = null) {
   try {
     await connectToDatabase();
 
-    // ✅ Get premium tier from decoded token
-    const user = req.user;
     const userPremium = user?.isPremium || 'FREE';
-
     const { cityName } = await context.params;
     const formattedCityName = decodeURIComponent(cityName).toLowerCase();
 
     const accessiblePremiums = getAccessiblePremiums(userPremium);
 
-    // ✅ Get query params for pagination
+    // ✅ Pagination
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = 5; // same limit as others
+    const limit = 5;
     const skip = (page - 1) * limit;
 
-    // ✅ Query with premium filtering + pagination
+    // ✅ Query with filters
     const cityInfos = await CityInfo.find({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
@@ -42,15 +40,14 @@ async function handler(req, context) {
       return NextResponse.json({ error: 'No city info found' }, { status: 404 });
     }
 
-    const cityInfoIds = cityInfos.map(info => info._id);
-
     // ✅ Update views
+    const cityInfoIds = cityInfos.map(info => info._id);
     await CityInfo.updateMany(
       { _id: { $in: cityInfoIds } },
       { $inc: { 'engagement.views': 1 } }
     );
 
-    // ✅ Get total count for pagination info
+    // ✅ Total count
     const total = await CityInfo.countDocuments({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
@@ -71,5 +68,16 @@ async function handler(req, context) {
   }
 }
 
-// ✅ Export with auth
-export const GET = withAuth(handler);
+// ✅ Public for page=1, Auth required for page>1
+export async function GET(req, context) {
+  const { searchParams } = new URL(req.url);
+  const page = parseInt(searchParams.get('page') || '1', 10);
+
+  if (page === 1) {
+    return coreHandler(req, context, null); // no auth
+  }
+
+  return withAuth(async (reqWithAuth, contextWithAuth) => {
+    return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
+  })(req, context);
+}

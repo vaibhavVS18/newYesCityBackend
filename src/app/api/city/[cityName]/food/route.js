@@ -10,11 +10,11 @@ function getAccessiblePremiums(userPremium) {
   return ['FREE'];
 }
 
-async function handler(req, context) {
+// ✅ Core handler (works for public + auth)
+async function coreHandler(req, context, user = null) {
   try {
     await connectToDatabase();
 
-    const user = req.user;
     const userPremium = user?.isPremium || 'FREE';
 
     const { cityName } = await context.params;
@@ -22,13 +22,13 @@ async function handler(req, context) {
 
     const accessiblePremiums = getAccessiblePremiums(userPremium);
 
-    // ✅ Get query params for pagination
+    // ✅ Pagination
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = 5; // keep consistent with other routes
+    const limit = 5;
     const skip = (page - 1) * limit;
 
-    // ✅ Find foods with premium filtering + pagination
+    // ✅ Find foods
     const foods = await Food.find({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
@@ -41,15 +41,14 @@ async function handler(req, context) {
       return NextResponse.json({ error: 'No food data found' }, { status: 404 });
     }
 
-    const foodIds = foods.map(food => food._id);
-
     // ✅ Increment views
+    const foodIds = foods.map(food => food._id);
     await Food.updateMany(
       { _id: { $in: foodIds } },
       { $inc: { 'engagement.views': 1 } }
     );
 
-    // ✅ Get total count for pagination metadata
+    // ✅ Total count
     const total = await Food.countDocuments({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
@@ -70,4 +69,16 @@ async function handler(req, context) {
   }
 }
 
-export const GET = withAuth(handler);
+// ✅ Export GET with public (page=1) vs auth (page>1)
+export async function GET(req, context) {
+  const { searchParams } = new URL(req.url);
+  const page = parseInt(searchParams.get('page') || '1', 10);
+
+  if (page === 1) {
+    return coreHandler(req, context, null); // no auth
+  }
+
+  return withAuth(async (reqWithAuth, contextWithAuth) => {
+    return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
+  })(req, context);
+}

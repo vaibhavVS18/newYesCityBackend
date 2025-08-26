@@ -10,25 +10,24 @@ function getAccessiblePremiums(userPremium) {
   return ['FREE'];
 }
 
-async function handler(req, context) {
+// ✅ Core handler (works with/without user)
+async function coreHandler(req, context, user = null) {
   try {
     await connectToDatabase();
 
-    const user = req.user;
     const userPremium = user?.isPremium || 'FREE';
-
     const { cityName } = await context.params;
     const formattedCityName = decodeURIComponent(cityName).toLowerCase();
 
     const accessiblePremiums = getAccessiblePremiums(userPremium);
 
-    // ✅ Get query params for pagination
+    // ✅ Pagination
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = 5; // keep consistent across routes
+    const limit = 5;
     const skip = (page - 1) * limit;
 
-    // ✅ Query hidden gems with premium filtering + pagination
+    // ✅ Query hidden gems
     const gems = await HiddenGem.find({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
@@ -41,15 +40,14 @@ async function handler(req, context) {
       return NextResponse.json({ error: 'No hidden gems found' }, { status: 404 });
     }
 
-    const gemIds = gems.map(gem => gem._id);
-
     // ✅ Increment views
+    const gemIds = gems.map(gem => gem._id);
     await HiddenGem.updateMany(
       { _id: { $in: gemIds } },
       { $inc: { 'engagement.views': 1 } }
     );
 
-    // ✅ Get total count for pagination metadata
+    // ✅ Total count
     const total = await HiddenGem.countDocuments({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
@@ -70,4 +68,18 @@ async function handler(req, context) {
   }
 }
 
-export const GET = withAuth(handler);
+// ✅ Export GET with page=1 public, page>1 auth
+export async function GET(req, context) {
+  const { searchParams } = new URL(req.url);
+  const page = parseInt(searchParams.get('page') || '1', 10);
+
+  if (page === 1) {
+    // Public access
+    return coreHandler(req, context, null);
+  }
+
+  // Auth required for page > 1
+  return withAuth(async (reqWithAuth, contextWithAuth) => {
+    return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
+  })(req, context);
+}

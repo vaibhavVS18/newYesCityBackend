@@ -10,30 +10,29 @@ function getAccessiblePremiums(userPremium) {
   return ['FREE'];
 }
 
-async function handler(req, context) {
+// ✅ Core handler (works for both public & auth)
+async function coreHandler(req, context, user = null) {
   try {
     await connectToDatabase();
 
-    const user = req.user;
     const userPremium = user?.isPremium || 'FREE';
-
     const { cityName } = await context.params;
     const formattedCityName = decodeURIComponent(cityName).toLowerCase();
 
     const accessiblePremiums = getAccessiblePremiums(userPremium);
 
-    // ✅ Get query params for pagination
+    // ✅ Pagination
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = 5; // keep consistent across all routes
+    const limit = 5;
     const skip = (page - 1) * limit;
 
-    // ✅ Find itineraries with pagination
+    // ✅ Find itineraries
     const itineraries = await Itinerary.find({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
     })
-      .select('_id cityName day1 day2 day3 premium') // adjust fields to your schema
+      .select('_id cityName day1 day2 day3 premium')
       .skip(skip)
       .limit(limit);
 
@@ -49,7 +48,7 @@ async function handler(req, context) {
       { $inc: { 'engagement.views': 1 } }
     );
 
-    // ✅ Total count for pagination metadata
+    // ✅ Total count
     const total = await Itinerary.countDocuments({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
@@ -70,4 +69,18 @@ async function handler(req, context) {
   }
 }
 
-export const GET = withAuth(handler);
+// ✅ GET route: page=1 → public, page>1 → auth
+export async function GET(req, context) {
+  const { searchParams } = new URL(req.url);
+  const page = parseInt(searchParams.get('page') || '1', 10);
+
+  if (page === 1) {
+    // Public
+    return coreHandler(req, context, null);
+  }
+
+  // Protected
+  return withAuth(async (reqWithAuth, contextWithAuth) => {
+    return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
+  })(req, context);
+}

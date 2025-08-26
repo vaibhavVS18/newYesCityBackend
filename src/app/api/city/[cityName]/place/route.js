@@ -10,14 +10,14 @@ function getAccessiblePremiums(userPremium) {
   return ['FREE'];
 }
 
-async function handler(req, context) {
+// ✅ Core reusable logic
+async function coreHandler(req, context, user = null) {
   try {
     await connectToDatabase();
 
-    const user = req.user;
     const userPremium = user?.isPremium || 'FREE';
 
-    const { cityName } = await context.params;
+    const { cityName } = context.params;
     const formattedCityName = decodeURIComponent(cityName).toLowerCase();
 
     const accessiblePremiums = getAccessiblePremiums(userPremium);
@@ -25,7 +25,7 @@ async function handler(req, context) {
     // ✅ Pagination
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = 5; // consistent with other routes
+    const limit = 5;
     const skip = (page - 1) * limit;
 
     // ✅ Fetch places
@@ -33,7 +33,7 @@ async function handler(req, context) {
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
     })
-      .select('_id cityName places establishYear description images premium') // adjust fields to your schema
+      .select('_id cityName places establishYear description images premium')
       .skip(skip)
       .limit(limit);
 
@@ -49,7 +49,7 @@ async function handler(req, context) {
       { $inc: { 'engagement.views': 1 } }
     );
 
-    // ✅ Get total count for pagination metadata
+    // ✅ Get total count
     const total = await Place.countDocuments({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
@@ -70,4 +70,20 @@ async function handler(req, context) {
   }
 }
 
-export const GET = withAuth(handler);
+// ✅ GET route: 
+// - page = 1 → public (FREE tier) 
+// - page > 1 → protected with auth
+export async function GET(req, context) {
+  const { searchParams } = new URL(req.url);
+  const page = parseInt(searchParams.get('page') || '1', 10);
+
+  if (page === 1) {
+    // Public access
+    return coreHandler(req, context, null);
+  }
+
+  // Protected access
+  return withAuth(async (reqWithAuth, contextWithAuth) => {
+    return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
+  })(req, context);
+}

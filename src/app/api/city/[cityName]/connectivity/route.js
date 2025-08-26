@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import Connectivity from '@/models/CityRoutes/Connectivity';
-import { withAuth } from '@/middleware/auth'; // ✅ Added middleware
+import { withAuth } from '@/middleware/auth';
 
 // ✅ Premium access logic
 function getAccessiblePremiums(userPremium) {
@@ -10,26 +10,24 @@ function getAccessiblePremiums(userPremium) {
   return ['FREE'];
 }
 
-async function handler(req, context) {
+// ✅ Core handler (shared for public & auth)
+async function coreHandler(req, context, user = null) {
   try {
     await connectToDatabase();
 
-    // ✅ Extract user and premium tier from JWT
-    const user = req.user;
     const userPremium = user?.isPremium || 'FREE';
-
     const { cityName } = await context.params;
     const formattedCityName = decodeURIComponent(cityName).toLowerCase();
 
     const accessiblePremiums = getAccessiblePremiums(userPremium);
 
-    // ✅ Get query params for pagination
+    // ✅ Pagination
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = 5; // consistent across routes
+    const limit = 5;
     const skip = (page - 1) * limit;
 
-    // ✅ Filter connectivity by city and premium tier with pagination
+    // ✅ Fetch data
     const connectivityRecords = await Connectivity.find({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
@@ -42,15 +40,14 @@ async function handler(req, context) {
       return NextResponse.json({ error: 'No connectivity data found' }, { status: 404 });
     }
 
-    const connectivityIds = connectivityRecords.map(conn => conn._id);
-
     // ✅ Update engagement views
+    const connectivityIds = connectivityRecords.map(conn => conn._id);
     await Connectivity.updateMany(
       { _id: { $in: connectivityIds } },
       { $inc: { 'engagement.views': 1 } }
     );
 
-    // ✅ Get total count for pagination metadata
+    // ✅ Count total
     const total = await Connectivity.countDocuments({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
@@ -71,5 +68,16 @@ async function handler(req, context) {
   }
 }
 
-// ✅ Protect route with JWT auth
-export const GET = withAuth(handler);
+// ✅ Export: public for page=1, auth required otherwise
+export async function GET(req, context) {
+  const { searchParams } = new URL(req.url);
+  const page = parseInt(searchParams.get('page') || '1', 10);
+
+  if (page === 1) {
+    return coreHandler(req, context, null); // no login needed
+  }
+
+  return withAuth(async (reqWithAuth, contextWithAuth) => {
+    return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
+  })(req, context);
+}

@@ -10,19 +10,18 @@ function getAccessiblePremiums(userPremium) {
   return ['FREE'];
 }
 
-async function handler(req, context) {
+// ✅ Core handler (works for both public + auth)
+async function coreHandler(req, context, user = null) {
   try {
     await connectToDatabase();
 
-    const user = req.user;
     const userPremium = user?.isPremium || 'FREE';
-
-    const { cityName } = await context.params;
+    const { cityName } = context.params;
     const formattedCityName = decodeURIComponent(cityName).toLowerCase();
 
     const accessiblePremiums = getAccessiblePremiums(userPremium);
 
-    // ✅ Pagination setup
+    // ✅ Pagination
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = 5;
@@ -33,7 +32,7 @@ async function handler(req, context) {
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
     })
-      .select('_id cityName from to premium') // adjust fields as needed
+      .select('_id cityName from to premium')
       .skip(skip)
       .limit(limit);
 
@@ -70,4 +69,18 @@ async function handler(req, context) {
   }
 }
 
-export const GET = withAuth(handler);
+// ✅ Public for page=1, auth required for page>1
+export async function GET(req, context) {
+  const { searchParams } = new URL(req.url);
+  const page = parseInt(searchParams.get('page') || '1', 10);
+
+  if (page === 1) {
+    // Public access
+    return coreHandler(req, context, null);
+  }
+
+  // Auth required for other pages
+  return withAuth(async (reqWithAuth, contextWithAuth) => {
+    return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
+  })(req, context);
+}
