@@ -10,25 +10,21 @@ function getAccessiblePremiums(userPremium) {
   return ['FREE'];
 }
 
-// ✅ Main handler wrapped with auth
-async function handler(req, context) {
+// ✅ Core handler (works for both public & auth cases)
+async function coreHandler(req, context, user = null) {
   try {
     await connectToDatabase();
 
-    // ✅ Extract user from JWT
-    const user = req.user;
     const userPremium = user?.isPremium || 'FREE';
-
     const { cityName } = await context.params;
     const formattedCityName = decodeURIComponent(cityName).toLowerCase();
 
-    // ✅ Apply premium-based filter
     const accessiblePremiums = getAccessiblePremiums(userPremium);
 
     // ✅ Get query params for pagination
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = 5; // same as accommodations
+    const limit = 5;
     const skip = (page - 1) * limit;
 
     // ✅ Find activities with pagination
@@ -36,7 +32,7 @@ async function handler(req, context) {
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
     })
-      .select('_id cityName topActivities images premium') // choose fields
+      .select('_id cityName topActivities images premium')
       .skip(skip)
       .limit(limit);
 
@@ -51,7 +47,7 @@ async function handler(req, context) {
       { $inc: { 'engagement.views': 1 } }
     );
 
-    // ✅ Get total count for pagination info
+    // ✅ Get total count
     const total = await Activity.countDocuments({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
@@ -72,5 +68,18 @@ async function handler(req, context) {
   }
 }
 
-// ✅ Export wrapped with auth
-export const GET = withAuth(handler);
+// ✅ Public + Auth entrypoint
+export async function GET(req, context) {
+  const { searchParams } = new URL(req.url);
+  const page = parseInt(searchParams.get('page') || '1', 10);
+
+  // page=1 → no login required
+  if (page === 1) {
+    return coreHandler(req, context, null);
+  }
+
+  // page > 1 → require login
+  return withAuth(async (reqWithAuth, contextWithAuth) => {
+    return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
+  })(req, context);
+}
