@@ -42,9 +42,7 @@ async function handler(req) {
     const date = new Date();
 
     // ✅ user comes from withAuth middleware
-    const userId = req.user?.userId;  
-    console.log(req.user);
-
+    const userId = req.user?.userId;
     if (!rating || !content || !userId || !cityName || !onModel || !parentRef) {
       return new Response(
         JSON.stringify({ message: "All fields are required.", success: false }),
@@ -65,7 +63,7 @@ async function handler(req) {
     let parentObjectId;
     try {
       parentObjectId = new mongoose.Types.ObjectId(parentRef);
-    } catch (err) {
+    } catch {
       return new Response(
         JSON.stringify({ message: "Invalid parentRef ID.", success: false }),
         { status: 400 }
@@ -82,6 +80,9 @@ async function handler(req) {
       parentRef: parentObjectId,
       onModel,
     });
+
+    // ✅ Populate createdBy so frontend gets username/email immediately
+    const populatedReview = await newReview.populate("createdBy", "username email");
 
     // ✅ Attach review to parent document
     const updatedDoc = await Model.findByIdAndUpdate(
@@ -101,7 +102,7 @@ async function handler(req) {
       JSON.stringify({
         message: "Review added successfully!",
         success: true,
-        review: newReview,
+        review: populatedReview,   // <-- send populated version
       }),
       { status: 201 }
     );
