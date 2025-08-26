@@ -9,11 +9,11 @@ function getAccessiblePremiums(userPremium) {
   return ['FREE'];
 }
 
-async function handler(req, context) {
+// Core handler (works for both public & auth cases)
+async function coreHandler(req, context, user = null) {
   try {
     await connectToDatabase();
 
-    const user = req.user;
     const userPremium = user?.isPremium || 'FREE';
     const { cityName } = await context.params;
     const formattedCityName = decodeURIComponent(cityName).toLowerCase();
@@ -39,7 +39,7 @@ async function handler(req, context) {
       return NextResponse.json({ error: 'No accommodations found' }, { status: 404 });
     }
 
-    // ✅ Get total count for pagination info
+    // ✅ Get total count
     const total = await Accommodation.countDocuments({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
@@ -60,4 +60,18 @@ async function handler(req, context) {
   }
 }
 
-export const GET = withAuth(handler);
+// ✅ Public entrypoint
+export async function GET(req, context) {
+  const { searchParams } = new URL(req.url);
+  const page = parseInt(searchParams.get('page') || '1', 10);
+
+  // If page=1 → no auth required
+  if (page === 1) {
+    return coreHandler(req, context, null); // user = null
+  }
+
+  // Else → require authentication
+  return withAuth(async (reqWithAuth, contextWithAuth) => {
+    return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
+  })(req, context);
+}
