@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: 'Access-Control-Allow-Origin',
-            value: 'http://localhost:3000, https://new-yes-city-frontend.vercel.app',
+            value: 'https://new-yes-city-frontend.vercel.app',
           },
           {
             key: 'Access-Control-Allow-Methods',
