@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/db';
+import { connectToDatabase } from '@/lib/db'; // Utility to connect to MongoDB
 import Blog from '@/models/Blog';
-import { withAuth } from '@/middleware/auth';
 
-
-async function handler() {
+// Fetch all blogs
+export async function GET() {
   try {
     await connectToDatabase();
     const blogs = await Blog.find();
@@ -14,5 +13,3 @@ async function handler() {
     return NextResponse.json({ message: 'Server error' }, { status: 500 });
   }
 }
-
-export const GET = withAuth(handler);

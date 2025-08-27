@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/db';
+import { connectToDatabase } from '@/lib/db'; // Utility to connect to MongoDB
 import Blog from '@/models/Blog';
 
-export async function GET(req, context) {
+// Fetch a single blog by ID
+export async function GET(req, { params }) {
   await connectToDatabase();
-
-  const { id } = await context.params; // ✅ Correct — no await here
+  const { id } = params;
 
   try {
     const blog = await Blog.findById(id);
@@ -18,5 +18,3 @@ export async function GET(req, context) {
     return NextResponse.json({ message: 'Server error' }, { status: 500 });
   }
 }
-
-
