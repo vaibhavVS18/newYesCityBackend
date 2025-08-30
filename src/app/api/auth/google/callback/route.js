@@ -115,12 +115,14 @@ export async function GET(req) {
     // Step 5: Create response + set cookie and redirect to frontend
     const redirectUrl = `${process.env.FRONTEND_URL}/`;
     const res =  NextResponse.redirect(redirectUrl);
-    res.cookies.set("token", token, {
+    res.cookies.set({
+      name: 'token',
+      value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/", 
-      maxAge: 7 * 24 * 60 * 60, // 7 days
+      secure: true,
+      sameSite: 'none',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
     return res;
@@ -142,12 +144,14 @@ export async function GET(req) {
     // Step 5: Create response + set cookie and redirect to frontend
     const redirectUrl = `${process.env.FRONTEND_URL}/`;
     const res =  NextResponse.redirect(redirectUrl);
-    res.cookies.set("token", token, {
+    res.cookies.set({
+      name: 'token',
+      value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/", 
-      maxAge: 7 * 24 * 60 * 60, // 7 days
+      secure: true,
+      sameSite: 'none',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
     return res;
