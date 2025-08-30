@@ -104,6 +104,26 @@ export async function GET(req) {
         referralCode: newReferralCode,
         password: '',
       });
+
+          // Step 4: Generate JWT
+    const token = jwt.sign(
+      { userId: user._id, email: user.email, username: user.username, phone: user.phone },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    // Step 5: Create response + set cookie and redirect to frontend
+    const redirectUrl = `${process.env.FRONTEND_URL}/`;
+    const res =  NextResponse.redirect(redirectUrl);
+    res.cookies.set("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/", 
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+    });
+
+    return res;
     }
      else {
       // 🚨 Case: user doesn’t exist AND no phone provided
