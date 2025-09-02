@@ -68,6 +68,7 @@ export async function POST(req) {
       sameSite: 'none',
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 7 days
+      domain: "https://yes-city3-0.vercel.app"
     });
 
     return response;
