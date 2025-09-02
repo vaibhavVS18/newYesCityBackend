@@ -7,8 +7,8 @@ export async function POST() {
   // 🚀 MUST match cookie options used when setting
   res.cookies.set("token", "", {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+  secure: process.env.NODE_ENV === "production", // only secure in prod
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     path: "/",
     expires: new Date(0), // delete cookie
   });
