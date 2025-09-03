@@ -20,6 +20,7 @@ export function withAuth(handler) {
     // ✅ await cookies()
     const cookieStore = await cookies();
     const token = cookieStore.get("token")?.value;
+    console.log(token);
 
     if (!token) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -61,7 +62,7 @@ export function withAuth(handler) {
       premiumExpiryDate: user.premiumExpiryDate,
     };
 
-    console.log("Authenticated user:", req.user);
+    // console.log("Authenticated user:", req.user);
 
     return handler(req, context);
   };

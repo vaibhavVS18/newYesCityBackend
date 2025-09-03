@@ -1,79 +1,3 @@
-// import { NextResponse } from "next/server";
-// import { connectToDatabase } from "@/lib/db";
-// import Accommodation from "@/models/CityRoutes/Accommodation";
-// import { withAuth } from "@/middleware/auth"; // ✅ ensures user is logged in
-// import User from "@/models/User"; // 👈 ADD THIS
-
-// async function handler(req, context) {
-//   const { cityName, id } = await context.params;
-
-//   await connectToDatabase();
-
-//   try {
-//     const fieldsToSelect =
-//       "reviews hotels lat-lon address location-link category types-of-room-price facilities image0 image1 image2 premium engagement";
-
-//     // ✅ Always logged-in user (thanks to withAuth)
-//     const userId = req.user.userId;
-
-//     // ✅ Update engagement and return updated doc
-//     const updatedAccommodation = await Accommodation.findOneAndUpdate(
-//       {
-//         _id: id,
-//         cityName: { $regex: new RegExp(`^${cityName}$`, "i") }, // case-insensitive
-//       },
-//       {
-//         $inc: { "engagement.views": 1 },                // increase views
-//         $addToSet: { "engagement.viewedBy": userId },   // track unique users
-//       },
-//       { new: true } // return updated doc after update
-//     )
-//       .select(fieldsToSelect);
-//       // .populate({
-//       //   path: "reviews",
-//       //   select: "rating content date createdBy", // ✅ main review fields
-//       //   populate: {
-//       //     path: "createdBy",
-//       //     select: "username profileImage", // ✅ only show useful user info
-//       //   },
-//       // });
-
-//     if (!updatedAccommodation) {
-//       return NextResponse.json(
-//         { success: false, message: "Accommodation not found" },
-//         { status: 404 }
-//       );
-//     }
-
-//     return NextResponse.json({ success: true, data: updatedAccommodation });
-//   } catch (error) {
-//     console.error("Error fetching accommodation:", error);
-//     return NextResponse.json(
-//       { success: false, error: "Server error" },
-//       { status: 500 }
-//     );
-//   }
-// }
-
-// // ✅ Only accessible to logged-in users
-// export const GET = withAuth(handler);
-
-
-
-
-import { NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/db";
-import Accommodation from "@/models/CityRoutes/Accommodation";
-import { withAuth } from "@/middleware/auth"; 
-import User from "@/models/User"; 
-
-// ✅ Helper: what premium levels the user can access
-function getAccessiblePremiums(userPremium) {
-  if (userPremium === "B") return ["FREE", "A", "B"];
-  if (userPremium === "A") return ["FREE", "A"];
-  return ["FREE"];
-}
-
 async function handler(req, context) {
   const { cityName, id } = await context.params;
 
@@ -81,35 +5,52 @@ async function handler(req, context) {
 
   try {
     const fieldsToSelect =
-      "_id cityName flagship reviews hotels lat lon address locationLink category roomTypes facilities images premium";
+      "_id cityName flagship reviews hotels lat lon address locationLink category roomTypes facilities images premium engagement";
 
-    // ✅ Logged-in user
+    // Logged-in user
     const userId = req.user.userId;
     const user = await User.findById(userId).select("premium");
     const userPremium = user?.premium || "FREE";
 
     const accessiblePremiums = getAccessiblePremiums(userPremium);
 
-    // ✅ Directly update + return in one query
-    const updatedAccommodation = await Accommodation.findOneAndUpdate(
-      {
-        _id: id,
-        cityName: { $regex: new RegExp(`^${cityName}$`, "i") },
-        premium: { $in: accessiblePremiums }, // 👈 restrict by premium level
-      },
-      {
-        $inc: { "engagement.views": 1 },              // increase views
-        $addToSet: { "engagement.viewedBy": userId }, // unique users
-      },
-      { new: true, projection: fieldsToSelect } // return updated doc
-    );
+    // 1️⃣ Check if the user already exists in viewedBy
+    const accommodation = await Accommodation.findOne({
+      _id: id,
+      cityName: { $regex: new RegExp(`^${cityName}$`, "i") },
+      premium: { $in: accessiblePremiums },
+    });
 
-    if (!updatedAccommodation) {
+    if (!accommodation) {
       return NextResponse.json(
         { success: false, message: "Not authorized or accommodation not found" },
         { status: 403 }
       );
     }
+
+    // 2️⃣ Increment views
+    accommodation.engagement.views += 1;
+
+    // 3️⃣ Find the user in viewedBy
+    const userEntry = accommodation.engagement.viewedBy.find(
+      (entry) => entry.userId.toString() === userId
+    );
+
+    if (userEntry) {
+      // ✅ User exists → add new timestamp
+      userEntry.timestamps.push(new Date());
+    } else {
+      // ✅ User not present → add new entry with timestamp
+      accommodation.engagement.viewedBy.push({
+        userId,
+        timestamps: [new Date()],
+      });
+    }
+
+    await accommodation.save();
+
+    // 4️⃣ Return updated document
+    const updatedAccommodation = await Accommodation.findById(id).select(fieldsToSelect);
 
     return NextResponse.json({ success: true, data: updatedAccommodation });
   } catch (error) {
@@ -120,6 +61,3 @@ async function handler(req, context) {
     );
   }
 }
-
-// ✅ Only accessible to logged-in users
-export const GET = withAuth(handler);

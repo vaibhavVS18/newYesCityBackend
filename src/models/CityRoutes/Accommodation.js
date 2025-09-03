@@ -8,10 +8,15 @@ const accommodationSchema = new Schema({
 
   engagement: {
     views: { type: Number, default: 0 },
-    viewedBy: [{ type: Schema.Types.ObjectId, ref: "User" }]
+    viewedBy: [
+      {
+        userId: { type: Schema.Types.ObjectId, ref: "User" },
+        timestamps: [{ type: Date, default: Date.now }]
+      }
+    ]
   },
 
-  flagship: {type: Boolean, default: false},
+  flagship: { type: Boolean, default: false },
   reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
 
   hotels: { type: String, required: true },
