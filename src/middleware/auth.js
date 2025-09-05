@@ -69,3 +69,39 @@ export function withAuth(handler) {
 }
 
 
+export async function getUserFromCookies() {
+  // ✅ Get token from cookies
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value;
+
+  if (!token) return null;
+
+  const decoded = verifyToken(token);
+  if (!decoded) return null;
+
+  // ✅ Fetch user from DB
+  await connectToDatabase();
+  const user = await User.findById(decoded.userId);
+  if (!user) return null;
+
+  // ✅ Handle expired premium
+  if (
+    user.isPremium !== "FREE" &&
+    user.premiumExpiryDate &&
+    user.premiumExpiryDate < Date.now()
+  ) {
+    user.isPremium = "FREE";
+    user.premiumStartDate = new Date();
+    user.premiumExpiryDate = null;
+    await user.save();
+  }
+
+  // ✅ Return merged info
+  return {
+    ...decoded,
+    userId: user._id.toString(),
+    isPremium: user.isPremium,
+    premiumStartDate: user.premiumStartDate,
+    premiumExpiryDate: user.premiumExpiryDate,
+  };
+}

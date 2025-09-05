@@ -70,14 +70,19 @@ async function coreHandler(req, context, user = null) {
 }
 
 // ✅ Public for page=1, Auth required for page>1
+import { getUserFromCookies } from "@/middleware/auth"; // import the helper
+
 export async function GET(req, context) {
   const { searchParams } = new URL(req.url);
-  const page = parseInt(searchParams.get('page') || '1', 10);
+  const page = parseInt(searchParams.get("page") || "1", 10);
 
   if (page === 1) {
-    return coreHandler(req, context, null); // no auth
+    // ✅ Try to get user (if logged in)
+    const user = await getUserFromCookies();
+    return coreHandler(req, context, user); // pass user if found, else null
   }
 
+  // ✅ Page > 1 always requires auth
   return withAuth(async (reqWithAuth, contextWithAuth) => {
     return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
   })(req, context);
