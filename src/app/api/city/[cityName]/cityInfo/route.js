@@ -76,19 +76,15 @@ export async function GET(req, context) {
   const page = parseInt(searchParams.get('page') || '1', 10);
 
   if (page === 1) {
-    // 🔹 Try auth, but don't fail if unauthenticated
-    try {
-      return await withAuth2(async (reqWithAuth, contextWithAuth) => {
-        return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
-      })(req, context);
-    } catch {
-      // If no auth → still allow public access
-      return coreHandler(req, context, null);
-    }
+    // Auth optional → engagement recorded if user logged in
+    return withAuth(async (reqWithAuth, contextWithAuth) => {
+      return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user || null);
+    }, { optional: true })(req, context);
   }
 
-  // 🔹 Page > 1 always requires login
+  // Page > 1 → Auth required
   return withAuth(async (reqWithAuth, contextWithAuth) => {
     return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
   })(req, context);
 }
+
