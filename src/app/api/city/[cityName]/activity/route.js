@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import Activity from '@/models/CityRoutes/Activity';
 import { withAuth } from '@/middleware/auth';
+import { recordCategoryEngagement } from '@/lib/engagement'; // ✅ import utility
+
 
 // ✅ Helper to get allowed tiers
 function getAccessiblePremiums(userPremium) {
@@ -40,18 +42,16 @@ async function coreHandler(req, context, user = null) {
       return NextResponse.json({ error: 'No activities found' }, { status: 404 });
     }
 
-    // ✅ Update engagement views
-    const activityIds = activities.map(act => act._id);
-    await Activity.updateMany(
-      { _id: { $in: activityIds } },
-      { $inc: { 'engagement.views': 1 } }
-    );
-
     // ✅ Get total count
     const total = await Activity.countDocuments({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
     });
+
+    // ✅ Record engagement (including page=1 if user is logged in)
+    if (user) {
+      await recordCategoryEngagement(user, formattedCityName, "Activity");
+    }    
 
     return NextResponse.json({
       data: activities,
@@ -68,17 +68,24 @@ async function coreHandler(req, context, user = null) {
   }
 }
 
-// ✅ Public + Auth entrypoint
+// ✅ Public entrypoint
 export async function GET(req, context) {
   const { searchParams } = new URL(req.url);
   const page = parseInt(searchParams.get('page') || '1', 10);
 
-  // page=1 → no login required
   if (page === 1) {
-    return coreHandler(req, context, null);
+    // 🔹 Try auth, but don't fail if unauthenticated
+    try {
+      return await withAuth(async (reqWithAuth, contextWithAuth) => {
+        return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
+      })(req, context);
+    } catch {
+      // If no auth → still allow public access
+      return coreHandler(req, context, null);
+    }
   }
 
-  // page > 1 → require login
+  // 🔹 Page > 1 always requires login
   return withAuth(async (reqWithAuth, contextWithAuth) => {
     return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
   })(req, context);

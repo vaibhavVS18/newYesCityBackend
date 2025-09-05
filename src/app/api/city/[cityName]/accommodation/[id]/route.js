@@ -1,20 +1,29 @@
+import { NextResponse } from "next/server";
+import { connectToDatabase } from "@/lib/db";
+import Accommodation from "@/models/CityRoutes/Accommodation";
+import { withAuth } from "@/middleware/auth";
+import User from "@/models/User";
+
+function getAccessiblePremiums(userPremium) {
+  if (userPremium === "B") return ["FREE", "A", "B"];
+  if (userPremium === "A") return ["FREE", "A"];
+  return ["FREE"];
+}
+
 async function handler(req, context) {
   const { cityName, id } = await context.params;
-
   await connectToDatabase();
 
   try {
     const fieldsToSelect =
       "_id cityName flagship reviews hotels lat lon address locationLink category roomTypes facilities images premium engagement";
 
-    // Logged-in user
     const userId = req.user.userId;
     const user = await User.findById(userId).select("premium");
     const userPremium = user?.premium || "FREE";
-
     const accessiblePremiums = getAccessiblePremiums(userPremium);
 
-    // 1️⃣ Check if the user already exists in viewedBy
+    // ✅ Step 1: find the document
     const accommodation = await Accommodation.findOne({
       _id: id,
       cityName: { $regex: new RegExp(`^${cityName}$`, "i") },
@@ -28,19 +37,19 @@ async function handler(req, context) {
       );
     }
 
-    // 2️⃣ Increment views
+    // ✅ Step 2: increment views
     accommodation.engagement.views += 1;
 
-    // 3️⃣ Find the user in viewedBy
-    const userEntry = accommodation.engagement.viewedBy.find(
-      (entry) => entry.userId.toString() === userId
+    // ✅ Step 3: update viewedBy
+    const viewedEntry = accommodation.engagement.viewedBy.find(
+      (v) => v.userId.toString() === userId.toString()
     );
 
-    if (userEntry) {
-      // ✅ User exists → add new timestamp
-      userEntry.timestamps.push(new Date());
+    if (viewedEntry) {
+      // user exists → add new timestamp
+      viewedEntry.timestamps.push(new Date());
     } else {
-      // ✅ User not present → add new entry with timestamp
+      // new user → add entry with first timestamp
       accommodation.engagement.viewedBy.push({
         userId,
         timestamps: [new Date()],
@@ -49,15 +58,14 @@ async function handler(req, context) {
 
     await accommodation.save();
 
-    // 4️⃣ Return updated document
-    const updatedAccommodation = await Accommodation.findById(id).select(fieldsToSelect);
-
-    return NextResponse.json({ success: true, data: updatedAccommodation });
+    return NextResponse.json({ success: true, data: accommodation });
   } catch (error) {
-    console.error("Error fetching accommodation:", error);
+    console.error("Error updating accommodation:", error);
     return NextResponse.json(
       { success: false, error: "Server error" },
       { status: 500 }
     );
   }
 }
+
+export const GET = withAuth(handler);

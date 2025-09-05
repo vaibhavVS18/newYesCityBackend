@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import Food from '@/models/CityRoutes/Food';
 import { withAuth } from '@/middleware/auth';
+import { recordCategoryEngagement } from '@/lib/engagement'; // ✅ import utility
+
 
 // ✅ Premium access helper
 function getAccessiblePremiums(userPremium) {
@@ -41,18 +43,16 @@ async function coreHandler(req, context, user = null) {
       return NextResponse.json({ error: 'No food data found' }, { status: 404 });
     }
 
-    // ✅ Increment views
-    const foodIds = foods.map(food => food._id);
-    await Food.updateMany(
-      { _id: { $in: foodIds } },
-      { $inc: { 'engagement.views': 1 } }
-    );
-
     // ✅ Total count
     const total = await Food.countDocuments({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
     });
+
+    // ✅ Record engagement (including page=1 if user is logged in)
+    if (user) {
+      await recordCategoryEngagement(user, formattedCityName, "Food");
+    }    
 
     return NextResponse.json({
       data: foods,
@@ -69,15 +69,27 @@ async function coreHandler(req, context, user = null) {
   }
 }
 
-// ✅ Export GET with public (page=1) vs auth (page>1)
+
+
+
+// ✅ Public entrypoint
 export async function GET(req, context) {
   const { searchParams } = new URL(req.url);
   const page = parseInt(searchParams.get('page') || '1', 10);
 
   if (page === 1) {
-    return coreHandler(req, context, null); // no auth
+    // 🔹 Try auth, but don't fail if unauthenticated
+    try {
+      return await withAuth(async (reqWithAuth, contextWithAuth) => {
+        return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
+      })(req, context);
+    } catch {
+      // If no auth → still allow public access
+      return coreHandler(req, context, null);
+    }
   }
 
+  // 🔹 Page > 1 always requires login
   return withAuth(async (reqWithAuth, contextWithAuth) => {
     return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
   })(req, context);

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import NearbySpot from '@/models/CityRoutes/NearbySpot';
 import { withAuth } from '@/middleware/auth';
+import { recordCategoryEngagement } from '@/lib/engagement'; // ✅ import utility
+
 
 // ✅ Premium access helper
 function getAccessiblePremiums(userPremium) {
@@ -43,17 +45,16 @@ async function coreHandler(req, context, user = null) {
 
     const spotIds = spots.map(spot => spot._id);
 
-    // ✅ Increment views
-    await NearbySpot.updateMany(
-      { _id: { $in: spotIds } },
-      { $inc: { 'engagement.views': 1 } }
-    );
-
     // ✅ Total count
     const total = await NearbySpot.countDocuments({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
     });
+
+    // ✅ Record engagement (including page=1 if user is logged in)
+    if (user) {
+      await recordCategoryEngagement(user, formattedCityName, "NearbySpot");
+    }    
 
     return NextResponse.json({
       data: spots,
@@ -70,17 +71,26 @@ async function coreHandler(req, context, user = null) {
   }
 }
 
-// ✅ GET route: page=1 → public, page>1 → requires login
+
+
+// ✅ Public entrypoint
 export async function GET(req, context) {
   const { searchParams } = new URL(req.url);
   const page = parseInt(searchParams.get('page') || '1', 10);
 
   if (page === 1) {
-    // Public access
-    return coreHandler(req, context, null);
+    // 🔹 Try auth, but don't fail if unauthenticated
+    try {
+      return await withAuth(async (reqWithAuth, contextWithAuth) => {
+        return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
+      })(req, context);
+    } catch {
+      // If no auth → still allow public access
+      return coreHandler(req, context, null);
+    }
   }
 
-  // Protected access
+  // 🔹 Page > 1 always requires login
   return withAuth(async (reqWithAuth, contextWithAuth) => {
     return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
   })(req, context);

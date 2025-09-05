@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/db";
 import Transport from "@/models/CityRoutes/Transport";
 import { withAuth } from "@/middleware/auth";
+import User from "@/models/User";
+
+// ✅ Premium access helper
+function getAccessiblePremiums(userPremium) {
+  if (userPremium === "B") return ["FREE", "A", "B"];
+  if (userPremium === "A") return ["FREE", "A"];
+  return ["FREE"];
+}
 
 async function handler(req, context) {
   const { cityName, id } = await context.params;
@@ -10,34 +18,50 @@ async function handler(req, context) {
 
   try {
     const fieldsToSelect =
-      "_id cityName reviews from to autoPrice cabPrice bikePrice premium";
+      "_id cityName reviews from to autoPrice cabPrice bikePrice premium engagement";
 
     // ✅ Logged-in user
     const userId = req.user.userId;
+    const user = await User.findById(userId).select("premium");
+    const userPremium = user?.premium || "FREE";
+    const accessiblePremiums = getAccessiblePremiums(userPremium);
 
-    // ✅ Update engagement on view
-    const updatedTransport = await Transport.findOneAndUpdate(
-      {
-        _id: id,
-        cityName: { $regex: new RegExp(`^${cityName}$`, "i") }, // case-insensitive match
-      },
-      {
-        $inc: { "engagement.views": 1 },              // increment views
-        $addToSet: { "engagement.viewedBy": userId }, // unique user
-      },
-      { new: true }
-    ).select(fieldsToSelect);
+    // ✅ Step 1: find transport with premium check
+    const transport = await Transport.findOne({
+      _id: id,
+      cityName: { $regex: new RegExp(`^${cityName}$`, "i") },
+      premium: { $in: accessiblePremiums },
+    }).select(fieldsToSelect);
 
-    if (!updatedTransport) {
+    if (!transport) {
       return NextResponse.json(
-        { success: false, message: "Transport route not found" },
-        { status: 404 }
+        { success: false, message: "Not authorized or Transport route not found" },
+        { status: 403 }
       );
     }
 
-    return NextResponse.json({ success: true, data: updatedTransport });
+    // ✅ Step 2: increment views
+    transport.engagement.views += 1;
+
+    // ✅ Step 3: update viewedBy with timestamps
+    const viewedEntry = transport.engagement.viewedBy.find(
+      (v) => v.userId.toString() === userId.toString()
+    );
+
+    if (viewedEntry) {
+      viewedEntry.timestamps.push(new Date());
+    } else {
+      transport.engagement.viewedBy.push({
+        userId,
+        timestamps: [new Date()],
+      });
+    }
+
+    await transport.save();
+
+    return NextResponse.json({ success: true, data: transport });
   } catch (error) {
-    console.error("Error fetching local transport:", error);
+    console.error("Error updating Transport:", error);
     return NextResponse.json(
       { success: false, error: "Server error" },
       { status: 500 }
@@ -45,4 +69,5 @@ async function handler(req, context) {
   }
 }
 
+// ✅ Protect with auth
 export const GET = withAuth(handler);

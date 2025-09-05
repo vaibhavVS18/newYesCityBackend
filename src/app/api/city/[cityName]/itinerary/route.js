@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import Itinerary from '@/models/CityRoutes/Itinerary';
 import { withAuth } from '@/middleware/auth';
+import { recordCategoryEngagement } from '@/lib/engagement'; // ✅ import utility
+
 
 // ✅ Premium access helper
 function getAccessiblePremiums(userPremium) {
@@ -40,19 +42,17 @@ async function coreHandler(req, context, user = null) {
       return NextResponse.json({ error: 'No itinerary data found' }, { status: 404 });
     }
 
-    const itineraryIds = itineraries.map(it => it._id);
-
-    // ✅ Increment views
-    await Itinerary.updateMany(
-      { _id: { $in: itineraryIds } },
-      { $inc: { 'engagement.views': 1 } }
-    );
 
     // ✅ Total count
     const total = await Itinerary.countDocuments({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
     });
+
+    // ✅ Record engagement (including page=1 if user is logged in)
+    if (user) {
+      await recordCategoryEngagement(user, formattedCityName, "Itinerary");
+    }    
 
     return NextResponse.json({
       data: itineraries,
@@ -69,17 +69,27 @@ async function coreHandler(req, context, user = null) {
   }
 }
 
-// ✅ GET route: page=1 → public, page>1 → auth
+
+
+
+// ✅ Public entrypoint
 export async function GET(req, context) {
   const { searchParams } = new URL(req.url);
   const page = parseInt(searchParams.get('page') || '1', 10);
 
   if (page === 1) {
-    // Public
-    return coreHandler(req, context, null);
+    // 🔹 Try auth, but don't fail if unauthenticated
+    try {
+      return await withAuth(async (reqWithAuth, contextWithAuth) => {
+        return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
+      })(req, context);
+    } catch {
+      // If no auth → still allow public access
+      return coreHandler(req, context, null);
+    }
   }
 
-  // Protected
+  // 🔹 Page > 1 always requires login
   return withAuth(async (reqWithAuth, contextWithAuth) => {
     return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
   })(req, context);

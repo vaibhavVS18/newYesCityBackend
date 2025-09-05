@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import Accommodation from '@/models/CityRoutes/Accommodation';
 import { withAuth } from '@/middleware/auth';
+import { recordCategoryEngagement } from '@/lib/engagement'; // ✅ import utility
 
 function getAccessiblePremiums(userPremium) {
   if (userPremium === 'B') return ['FREE', 'A', 'B'];
@@ -45,6 +46,11 @@ async function coreHandler(req, context, user = null) {
       premium: { $in: accessiblePremiums },
     });
 
+    // ✅ Record engagement (including page=1 if user is logged in)
+    if (user) {
+      await recordCategoryEngagement(user, formattedCityName, "Accommodation");
+    }
+
     return NextResponse.json({
       data: accommodations,
       pagination: {
@@ -65,12 +71,19 @@ export async function GET(req, context) {
   const { searchParams } = new URL(req.url);
   const page = parseInt(searchParams.get('page') || '1', 10);
 
-  // If page=1 → no auth required
   if (page === 1) {
-    return coreHandler(req, context, null); // user = null
+    // 🔹 Try auth, but don't fail if unauthenticated
+    try {
+      return await withAuth(async (reqWithAuth, contextWithAuth) => {
+        return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
+      })(req, context);
+    } catch {
+      // If no auth → still allow public access
+      return coreHandler(req, context, null);
+    }
   }
 
-  // Else → require authentication
+  // 🔹 Page > 1 always requires login
   return withAuth(async (reqWithAuth, contextWithAuth) => {
     return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
   })(req, context);

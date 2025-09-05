@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import CityInfo from '@/models/CityRoutes/CityInfo';
 import { withAuth } from '@/middleware/auth';
+import { recordCategoryEngagement } from '@/lib/engagement'; // ✅ import utility
+
 
 // ✅ Premium access helper
 function getAccessiblePremiums(userPremium) {
@@ -40,18 +42,17 @@ async function coreHandler(req, context, user = null) {
       return NextResponse.json({ error: 'No city info found' }, { status: 404 });
     }
 
-    // ✅ Update views
-    const cityInfoIds = cityInfos.map(info => info._id);
-    await CityInfo.updateMany(
-      { _id: { $in: cityInfoIds } },
-      { $inc: { 'engagement.views': 1 } }
-    );
 
     // ✅ Total count
     const total = await CityInfo.countDocuments({
       cityName: { $regex: new RegExp(`^${formattedCityName}$`, 'i') },
       premium: { $in: accessiblePremiums },
     });
+
+    // ✅ Record engagement (including page=1 if user is logged in)
+    if (user) {
+      await recordCategoryEngagement(user, formattedCityName, "CityInfo");
+    }        
 
     return NextResponse.json({
       data: cityInfos,
@@ -68,15 +69,24 @@ async function coreHandler(req, context, user = null) {
   }
 }
 
-// ✅ Public for page=1, Auth required for page>1
+// ✅ Public entrypoint
 export async function GET(req, context) {
   const { searchParams } = new URL(req.url);
   const page = parseInt(searchParams.get('page') || '1', 10);
 
   if (page === 1) {
-    return coreHandler(req, context, null); // no auth
+    // 🔹 Try auth, but don't fail if unauthenticated
+    try {
+      return await withAuth(async (reqWithAuth, contextWithAuth) => {
+        return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
+      })(req, context);
+    } catch {
+      // If no auth → still allow public access
+      return coreHandler(req, context, null);
+    }
   }
 
+  // 🔹 Page > 1 always requires login
   return withAuth(async (reqWithAuth, contextWithAuth) => {
     return coreHandler(reqWithAuth, contextWithAuth, reqWithAuth.user);
   })(req, context);

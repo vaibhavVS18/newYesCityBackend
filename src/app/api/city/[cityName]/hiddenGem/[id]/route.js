@@ -1,43 +1,64 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/db";
 import HiddenGem from "@/models/CityRoutes/HiddenGem";
-import { withAuth } from "@/middleware/auth"; // ✅ ensures user is logged in
+import { withAuth } from "@/middleware/auth";
+import User from "@/models/User";
+
+function getAccessiblePremiums(userPremium) {
+  if (userPremium === "B") return ["FREE", "A", "B"];
+  if (userPremium === "A") return ["FREE", "A"];
+  return ["FREE"];
+}
 
 async function handler(req, context) {
   const { cityName, id } = await context.params;
-
   await connectToDatabase();
 
   try {
     const fieldsToSelect =
-      "_id cityName reviews hiddenGem category lat lon address locationLink openDay openTime guideAvailability establishYear fee description essential story images videos premium";
+      "_id cityName reviews hiddenGem category lat lon address locationLink openDay openTime guideAvailability establishYear fee description essential story images videos premium engagement";
 
-    // ✅ Always logged-in user (thanks to withAuth)
     const userId = req.user.userId;
+    const user = await User.findById(userId).select("premium");
+    const userPremium = user?.premium || "FREE";
+    const accessiblePremiums = getAccessiblePremiums(userPremium);
 
-    // ✅ Update engagement + return updated document
-    const updatedGem = await HiddenGem.findOneAndUpdate(
-      {
-        _id: id,
-        cityName: { $regex: new RegExp(`^${cityName}$`, "i") }, // case-insensitive
-      },
-      {
-        $inc: { "engagement.views": 1 },              // increase views
-        $addToSet: { "engagement.viewedBy": userId }, // track unique users
-      },
-      { new: true } // return updated doc
-    ).select(fieldsToSelect);
+    // ✅ Step 1: find the document
+    const gem = await HiddenGem.findOne({
+      _id: id,
+      cityName: { $regex: new RegExp(`^${cityName}$`, "i") },
+      premium: { $in: accessiblePremiums },
+    }).select(fieldsToSelect);
 
-    if (!updatedGem) {
+    if (!gem) {
       return NextResponse.json(
-        { success: false, message: "Hidden Gem not found" },
-        { status: 404 }
+        { success: false, message: "Not authorized or hidden gem not found" },
+        { status: 403 }
       );
     }
 
-    return NextResponse.json({ success: true, data: updatedGem });
+    // ✅ Step 2: increment views
+    gem.engagement.views += 1;
+
+    // ✅ Step 3: update viewedBy
+    const viewedEntry = gem.engagement.viewedBy.find(
+      (v) => v.userId.toString() === userId.toString()
+    );
+
+    if (viewedEntry) {
+      viewedEntry.timestamps.push(new Date());
+    } else {
+      gem.engagement.viewedBy.push({
+        userId,
+        timestamps: [new Date()],
+      });
+    }
+
+    await gem.save();
+
+    return NextResponse.json({ success: true, data: gem });
   } catch (error) {
-    console.error("Error fetching hidden gem:", error);
+    console.error("Error updating hidden gem:", error);
     return NextResponse.json(
       { success: false, error: "Server error" },
       { status: 500 }
@@ -45,5 +66,4 @@ async function handler(req, context) {
   }
 }
 
-// ✅ Only accessible to logged-in users
 export const GET = withAuth(handler);
