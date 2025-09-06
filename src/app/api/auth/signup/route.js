@@ -64,7 +64,9 @@ export async function POST(req) {
       referredBy: referredByUserId,
       profileImage,
       isPremium: 'FREE',
+      contributionPoints: 2, // ✅ initialize with 0
     });
+
 
     // Sign JWT
     const token = jwt.sign(
