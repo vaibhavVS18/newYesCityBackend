@@ -15,7 +15,7 @@ const contributionSchema = new Schema({
   images: [String],
   video: { type: String },
   submittedAt: { type: Date, default: Date.now },
-  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  status: { type: String, enum: ['pending', 'accepted', 'approved', 'rejected'], default: 'pending' },
   adminRemarks: { type: String },
 
     // ✅ New premium field with enum

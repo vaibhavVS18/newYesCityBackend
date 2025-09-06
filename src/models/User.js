@@ -67,10 +67,19 @@ const userSchema = new mongoose.Schema({
   referredBy: {
     type: String,
   },
-  contributionPoints: {
-    type: Number,
-    default: 0,
-  },
+contributionPoints: {
+  type: Number,
+  default: 0,
+},
+monthlyPoints: {
+  type: Number,
+  default: 0,
+},
+pointsMonth: {
+  type: Date,
+  default: Date.now,
+},
+
   referralCount: {
     type: Number,
     default: 0,
