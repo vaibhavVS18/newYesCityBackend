@@ -42,6 +42,7 @@ export async function POST(req) {
       if (refUser) {
         referredByUserId = refUser._id;
         refUser.referralCount += 1;
+        refUser.contributionPoints += 5;
         await refUser.save();
         try {
           await extendUserPremium(refUser._id);

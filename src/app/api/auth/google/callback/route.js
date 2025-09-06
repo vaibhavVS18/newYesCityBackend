@@ -72,7 +72,7 @@ export async function GET(req) {
 
    if (!user) {
     if (phone) {
-      
+
       // ✅ Normal signup with phone (already in your code)
         let referredByUserId = null;
         if (referredBy) {
@@ -80,6 +80,7 @@ export async function GET(req) {
           if (refUser) {
             referredByUserId = refUser._id;
             refUser.referralCount += 1;
+            refUser.contributionPoints += 5;
             await refUser.save();
             try {
               await extendUserPremium(refUser._id);
