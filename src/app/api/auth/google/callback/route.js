@@ -119,8 +119,8 @@ export async function GET(req) {
       name: 'token',
       value: token,
       httpOnly: true,
-  secure: process.env.NODE_ENV === "production", // only secure in prod
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    secure: process.env.NODE_ENV === "production", // only secure in prod
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
