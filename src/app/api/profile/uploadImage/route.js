@@ -148,7 +148,10 @@ export const POST = withAuth(async (req) => {
 
     // Update user's profile image in database
     user.profileImage = result.secure_url;
-    if(! user.firstProfile) user.contributionPoints += 3;
+    if(! user.firstProfile){
+      user.firstProfile = true;
+      user.contributionPoints += 3;
+    } 
     
     await user.save();
 
