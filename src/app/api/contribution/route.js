@@ -1,10 +1,7 @@
-// app/api/profile/contributionPoints/route.js
-
-import { connectToDatabase } from '@/lib/db';
+import { connectToDatabase } from '@/lib/mongoose';
 import User from '@/models/User';
-import { withAuth } from '@/middleware/auth';
+import { withAuth } from '@/lib/withAuth';
 
-// -------------------- INCREMENT User Contribution Points --------------------
 export const PATCH = withAuth(async (req) => {
   try {
     const userId = req.user.userId; // from withAuth
@@ -40,24 +37,25 @@ export const PATCH = withAuth(async (req) => {
       user.pointsMonth = now;
     }
 
-    // Enforce monthly cap of 90
-    if (user.monthlyPoints + contributionPoints > 90) {
-      return new Response(
-        JSON.stringify({ error: 'Monthly limit of 90 contribution points reached' }),
-        { status: 403, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+    // Enforce monthly cap of 90 (no error, just skip adding more)
+    let addedPoints = 0;
+    if (user.monthlyPoints < 90) {
+      const available = 90 - user.monthlyPoints;
+      addedPoints = Math.min(contributionPoints, available);
 
-    // Apply increment
-    user.monthlyPoints += contributionPoints;
-    user.contributionPoints += contributionPoints;
-    await user.save();
+      user.monthlyPoints += addedPoints;
+      user.contributionPoints += addedPoints;
+      await user.save();
+    }
 
     return new Response(
       JSON.stringify({
-        message: 'Contribution points updated',
+        message: addedPoints > 0
+          ? 'Contribution points updated'
+          : 'Monthly limit reached, no points added',
         contributionPoints: user.contributionPoints,
         monthlyPoints: user.monthlyPoints,
+        addedPoints,
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
@@ -69,6 +67,7 @@ export const PATCH = withAuth(async (req) => {
     );
   }
 });
+
 
 
 // -------------------- GET User Contribution Points --------------------
@@ -99,4 +98,5 @@ export const GET = withAuth(async (req) => {
     );
   }
 });
+
 
