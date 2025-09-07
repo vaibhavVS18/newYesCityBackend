@@ -1,5 +1,5 @@
 // app/api/allContribution/[cityName]/route.js
-import { connectToDatabase } from "@/lib/mongoose";
+import { connectToDatabase } from "@/lib/db";
 import Contribution from "@/models/Contribution";
 
 export async function GET(req, context) {
