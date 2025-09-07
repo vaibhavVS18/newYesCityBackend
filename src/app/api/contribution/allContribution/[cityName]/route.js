@@ -4,7 +4,7 @@ import Contribution from "@/models/Contribution";
 
 export async function GET(req, context) {
   try {
-    const { cityName } = context.params; // ✅ cityName from URL
+    const { cityName } = context.params; 
     if (!cityName) {
       return new Response(
         JSON.stringify({ error: "City name is required" }),
@@ -19,13 +19,14 @@ export async function GET(req, context) {
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "12", 10);
     const category = searchParams.get("category");
-    const status = searchParams.get("status");
     const sortBy = searchParams.get("sortBy") || "newest";
 
-    // ✅ Build filters
-    const filters = { cityName: decodeURIComponent(cityName) };
+    // ✅ Build filters (always approved only)
+    const filters = { 
+      cityName: decodeURIComponent(cityName),
+      status: "approved",
+    };
     if (category) filters.category = category;
-    if (status) filters.status = status; // only filter if provided
 
     // ✅ Sorting
     let sort = {};
