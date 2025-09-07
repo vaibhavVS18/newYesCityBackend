@@ -1,7 +1,7 @@
 // app/api/contributions/route.js
-import { connectToDatabase } from '@/lib/mongoose';
+import { connectToDatabase } from '@/lib/db';
 import Contribution from '@/models/Contribution';
-import { withAuth } from '@/lib/withAuth';
+import { withAuth } from '@/middleware/auth';
 
 export const POST = withAuth(async (req) => {
   try {

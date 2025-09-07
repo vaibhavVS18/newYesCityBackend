@@ -1,6 +1,6 @@
-import { connectToDatabase } from '@/lib/mongoose';
+import { connectToDatabase } from '@/lib/db';
 import User from '@/models/User';
-import { withAuth } from '@/lib/withAuth';
+import { withAuth } from '@/middleware/auth';
 
 export const PATCH = withAuth(async (req) => {
   try {

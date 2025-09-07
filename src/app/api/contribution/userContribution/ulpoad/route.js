@@ -1,6 +1,6 @@
 // app/api/upload/route.js
 import { v2 as cloudinary } from 'cloudinary';
-import { withAuth } from '@/lib/withAuth';
+import { withAuth } from '@/middleware/auth';
 
 // Configure Cloudinary
 cloudinary.config({
