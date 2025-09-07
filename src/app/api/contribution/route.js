@@ -71,32 +71,32 @@ export const PATCH = withAuth(async (req) => {
 
 
 // -------------------- GET User Contribution Points --------------------
-export const GET = withAuth(async (req) => {
-  try {
-    const userId = req.user.userId; // from withAuth
+// export const GET = withAuth(async (req) => {
+//   try {
+//     const userId = req.user.userId; // from withAuth
 
-    await connectToDatabase();
+//     await connectToDatabase();
 
-    const user = await User.findById(userId).select('contributionPoints');
+//     const user = await User.findById(userId).select('contributionPoints');
 
-    if (!user) {
-      return new Response(
-        JSON.stringify({ error: 'User not found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+//     if (!user) {
+//       return new Response(
+//         JSON.stringify({ error: 'User not found' }),
+//         { status: 404, headers: { 'Content-Type': 'application/json' } }
+//       );
+//     }
 
-    return new Response(
-      JSON.stringify({ contributionPoints: user.contributionPoints }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    console.error('Error fetching contribution points:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal Server Error' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-});
+//     return new Response(
+//       JSON.stringify({ contributionPoints: user.contributionPoints }),
+//       { status: 200, headers: { 'Content-Type': 'application/json' } }
+//     );
+//   } catch (error) {
+//     console.error('Error fetching contribution points:', error);
+//     return new Response(
+//       JSON.stringify({ error: 'Internal Server Error' }),
+//       { status: 500, headers: { 'Content-Type': 'application/json' } }
+//     );
+//   }
+// });
 
 

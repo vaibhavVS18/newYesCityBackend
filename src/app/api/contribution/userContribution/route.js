@@ -15,7 +15,6 @@ export const POST = withAuth(async (req) => {
       description, 
       images, // Array of Cloudinary URLs
       video,  // Single Cloudinary URL
-      premium = 'FREE' 
     } = body;
 
     console.log('POST userContribution called with:', {
@@ -75,7 +74,6 @@ export const POST = withAuth(async (req) => {
       description,
       images: images || [],
       video: video || null,
-      premium,
       status: 'pending',
       submittedAt: new Date()
     });
@@ -107,41 +105,52 @@ export const POST = withAuth(async (req) => {
   }
 });
 
-export const GET = withAuth(async (req) => {
+
+
+
+export const GET = withAuth(async (req, { params }) => {
   try {
     const userId = req.user.userId; // from withAuth
+    const { cityName } = params; // 👈 comes from URL param
     const url = new URL(req.url);
-    const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || '10');
+
+    const page = parseInt(url.searchParams.get("page") || "1");
+    const limit = parseInt(url.searchParams.get("limit") || "10");
     const skip = (page - 1) * limit;
 
-    console.log('GET userContribution called:', {
+    console.log("GET userContribution by cityName called:", {
       userId,
+      cityName,
       page,
       limit,
-      skip
+      skip,
     });
+
+    if (!cityName) {
+      return new Response(
+        JSON.stringify({ error: "cityName param is required" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     await connectToDatabase();
 
-    // Get user's contributions with pagination
-    const contributions = await Contribution
-      .find({ userId })
+    // Find contributions by user + cityName
+    const contributions = await Contribution.find({
+      userId,
+      cityName: decodeURIComponent(cityName),
+    })
       .sort({ submittedAt: -1 })
       .skip(skip)
       .limit(limit)
-      .select('-reviews') // Exclude reviews for performance
+      .select("-reviews")
       .lean();
 
-    // Get total count for pagination
-    const totalContributions = await Contribution.countDocuments({ userId });
-    const totalPages = Math.ceil(totalContributions / limit);
-
-    console.log('Found contributions:', {
-      count: contributions.length,
-      total: totalContributions,
-      pages: totalPages
+    const totalContributions = await Contribution.countDocuments({
+      userId,
+      cityName: decodeURIComponent(cityName),
     });
+    const totalPages = Math.ceil(totalContributions / limit);
 
     return new Response(
       JSON.stringify({
@@ -151,16 +160,16 @@ export const GET = withAuth(async (req) => {
           totalPages,
           totalContributions,
           hasNextPage: page < totalPages,
-          hasPrevPage: page > 1
-        }
+          hasPrevPage: page > 1,
+        },
       }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
+      { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error('Error fetching contributions:', error);
+    console.error("Error fetching contributions:", error);
     return new Response(
-      JSON.stringify({ error: 'Internal Server Error' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: "Internal Server Error" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 });
