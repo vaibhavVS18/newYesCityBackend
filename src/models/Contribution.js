@@ -8,7 +8,6 @@ const contributionSchema = new Schema({
   cityName: { type: String , required: true}, // Optional, for quick access or display
   reviews: [{ type: Schema.Types.ObjectId, ref: 'Review' }],
 
-  username: { type: String },
   category: { type: String}, // e.g., "food", "placesToVisit"
   title: { type: String, required: true },
   description: { type: String },
@@ -18,12 +17,6 @@ const contributionSchema = new Schema({
   status: { type: String, enum: ['pending', 'accepted', 'approved', 'rejected'], default: 'pending' },
   adminRemarks: { type: String },
 
-    // ✅ New premium field with enum
-  premium: {
-    type: String,
-    enum: ["FREE", "A", "B"],
-    default: "FREE" // Optional: set default
-  },
 });
 
 const Contribution = mongoose.models.Contribution || mongoose.model("Contribution", contributionSchema);
