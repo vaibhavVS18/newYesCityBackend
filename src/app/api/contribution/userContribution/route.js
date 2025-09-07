@@ -1,143 +1,152 @@
-// app/api/contributions/route.js
-import { connectToDatabase } from '@/lib/db';
-import Contribution from '@/models/Contribution';
-import { withAuth } from '@/middleware/auth';
+// app/api/contribution/userContribution/upload/route.js
+import { v2 as cloudinary } from 'cloudinary';
+import { withAuth } from '@/lib/withAuth';
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 export const POST = withAuth(async (req) => {
   try {
-    const userId = req.user.userId; // from withAuth
-    const body = await req.json();
-    const {
-      cityName,
-      username,
-      category,
-      title,
-      description,
-      images, // Array of Cloudinary URLs
-      video,  // Single Cloudinary URL
-      premium = 'FREE'
-    } = body;
+    console.log('Upload API called');
+    
+    const formData = await req.formData();
+    console.log('FormData received');
+    
+    // Log all form data entries
+    for (const [key, value] of formData.entries()) {
+      console.log(
+        `FormData entry: ${key}`,
+        value instanceof File ? `File: ${value.name}` : value
+      );
+    }
+    
+    const file = formData.get('file');
+    const type = formData.get('type'); // 'image' or 'video'
 
-    // Validation
-    if (!cityName || !title) {
+    console.log('File:', file);
+    console.log('Type:', type);
+
+    if (!file) {
+      console.log('No file found in formData');
       return new Response(
-        JSON.stringify({ error: 'City name and title are required' }),
+        JSON.stringify({ error: 'No file provided' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    // Validate images array (should be array of URLs)
-    if (images && !Array.isArray(images)) {
+    if (!(file instanceof File)) {
+      console.log('File is not a File instance:', typeof file);
       return new Response(
-        JSON.stringify({ error: 'Images should be an array' }),
+        JSON.stringify({ error: 'Invalid file format' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    // Validate image URLs are from Cloudinary (optional security check)
-    if (images && images.length > 0) {
-      const invalidImages = images.filter((url) =>
-        typeof url !== 'string' || !url.includes('cloudinary.com')
-      );
-      if (invalidImages.length > 0) {
-        return new Response(
-          JSON.stringify({ error: 'Invalid image URLs detected' }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-    // Validate video URL is from Cloudinary (optional security check)
-    if (video && (typeof video !== 'string' || !video.includes('cloudinary.com'))) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid video URL' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    await connectToDatabase();
-
-    // Create new contribution
-    const contribution = new Contribution({
-      userId,
-      cityName,
-      username,
-      category,
-      title,
-      description,
-      images: images || [],
-      video: video || null,
-      premium,
-      status: 'pending',
-      submittedAt: new Date()
+    console.log('File details:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
     });
 
-    await contribution.save();
+    // Validate file type
+    if (type === 'image' && !file.type.startsWith('image/')) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid image file type' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (type === 'video' && !file.type.startsWith('video/')) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid video file type' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate file size
+    const maxSize = type === 'video' ? 50 * 1024 * 1024 : 5 * 1024 * 1024; // 50MB for video, 5MB for image
+    if (file.size > maxSize) {
+      return new Response(
+        JSON.stringify({
+          error: `File too large. Maximum size is ${type === 'video' ? '50MB' : '5MB'}`
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Starting Cloudinary upload...');
+
+    // Convert file to buffer
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+
+    console.log('File converted to buffer, size:', buffer.length);
+
+    // Upload to Cloudinary
+    const uploadResult = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          resource_type: type === 'video' ? 'video' : 'image',
+          folder: 'contributions',
+          transformation:
+            type === 'image'
+              ? [
+                  { width: 1200, height: 800, crop: 'limit' },
+                  { quality: 'auto' },
+                  { fetch_format: 'auto' }
+                ]
+              : [{ quality: 'auto' }]
+        },
+        (error, result) => {
+          if (error) {
+            console.error('Cloudinary upload error:', error);
+            reject(error);
+          } else {
+            console.log('Cloudinary upload success:', result?.secure_url);
+            resolve(result);
+          }
+        }
+      );
+
+      uploadStream.end(buffer);
+    });
+
+    const result = uploadResult;
 
     return new Response(
       JSON.stringify({
-        message: 'Contribution submitted successfully',
-        contribution: {
-          id: contribution._id,
-          title: contribution.title,
-          status: contribution.status,
-          submittedAt: contribution.submittedAt,
-          images: contribution.images,
-          video: contribution.video
-        }
-      }),
-      { status: 201, headers: { 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    console.error('Error creating contribution:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal Server Error' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-});
-
-export const GET = withAuth(async (req) => {
-  try {
-    const userId = req.user.userId; // from withAuth
-    const url = new URL(req.url);
-    const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || '10');
-    const skip = (page - 1) * limit;
-
-    await connectToDatabase();
-
-    // Get user's contributions with pagination
-    const contributions = await Contribution
-      .find({ userId })
-      .sort({ submittedAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .select('-reviews') // Exclude reviews for performance
-      .lean();
-
-    // Get total count for pagination
-    const totalContributions = await Contribution.countDocuments({ userId });
-    const totalPages = Math.ceil(totalContributions / limit);
-
-    return new Response(
-      JSON.stringify({
-        contributions,
-        pagination: {
-          currentPage: page,
-          totalPages,
-          totalContributions,
-          hasNextPage: page < totalPages,
-          hasPrevPage: page > 1
-        }
+        success: true,
+        url: result.secure_url,
+        publicId: result.public_id,
+        resourceType: result.resource_type
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
+
   } catch (error) {
-    console.error('Error fetching contributions:', error);
+    console.error('Upload error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal Server Error' }),
+      JSON.stringify({
+        error: 'Upload failed',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
 });
+
+// Add OPTIONS method for CORS if needed
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
+}
