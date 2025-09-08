@@ -16,9 +16,10 @@ import Shop from '@/models/CityRoutes/Shop';
 import Transport from '@/models/CityRoutes/Transport';
 
 import { withAuth } from '@/middleware/auth';
-import pkg from "bad-words";   // ✅ fix CommonJS import
-const Filter = pkg;            // ✅ assign properly
 
+// ✅ Fix bad-words import for Next.js
+import FilterPkg from "bad-words";
+const Filter = FilterPkg.default || FilterPkg;
 
 const MODELS = {
   Accommodation,
