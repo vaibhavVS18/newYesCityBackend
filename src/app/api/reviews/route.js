@@ -16,7 +16,9 @@ import Shop from '@/models/CityRoutes/Shop';
 import Transport from '@/models/CityRoutes/Transport';
 
 import { withAuth } from '@/middleware/auth';
-import Filter from 'bad-words';   // ✅ profanity filter
+import pkg from "bad-words";   // ✅ fix CommonJS import
+const Filter = pkg;            // ✅ assign properly
+
 
 const MODELS = {
   Accommodation,
