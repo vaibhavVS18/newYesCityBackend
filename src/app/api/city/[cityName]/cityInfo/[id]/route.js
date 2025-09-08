@@ -27,7 +27,7 @@ export async function GET(req, context) {
     const cityInfo = await CityInfo.findOne({
       _id: id,
       cityName: { $regex: new RegExp(`^${cityName}$`, "i") },
-      premium: { $in: accessiblePremiums },
+      // premium: { $in: accessiblePremiums },
     }).select(fieldsToSelect);
 
     if (!cityInfo) {
