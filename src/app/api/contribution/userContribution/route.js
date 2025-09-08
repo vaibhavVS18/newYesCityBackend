@@ -9,7 +9,6 @@ export const POST = withAuth(async (req) => {
     const body = await req.json();
     const { 
       cityName, 
-      username, 
       category, 
       title, 
       description, 
@@ -68,7 +67,6 @@ export const POST = withAuth(async (req) => {
     const contribution = new Contribution({
       userId,
       cityName,
-      username,
       category,
       title,
       description,
