@@ -11,7 +11,7 @@ function getAccessiblePremiums(userPremium) {
   return ["FREE"];
 }
 
-export async function GET(req, context) {
+async function handler(req, context) {
   const { cityName, id } = await context.params;
 
   await connectToDatabase();
@@ -70,4 +70,4 @@ export async function GET(req, context) {
 }
 
 // ✅ Wrap with auth middleware
-// export const GET = withAuth(handler);
+export const GET = withAuth(handler);
