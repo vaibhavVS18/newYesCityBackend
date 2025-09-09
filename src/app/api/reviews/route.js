@@ -1,3 +1,4 @@
+"/api/reviews"
 import mongoose from 'mongoose';
 import { connectToDatabase } from '@/lib/db';
 import Review from '@/models/Review';
@@ -16,10 +17,6 @@ import Shop from '@/models/CityRoutes/Shop';
 import Transport from '@/models/CityRoutes/Transport';
 
 import { withAuth } from '@/middleware/auth';
-
-// ✅ Fix bad-words import for Next.js
-import FilterPkg from "bad-words";
-const Filter = FilterPkg.default || FilterPkg;
 
 const MODELS = {
   Accommodation,
@@ -44,6 +41,7 @@ async function handler(req) {
     const { rating, content, cityName, onModel, parentRef } = body;
     const date = new Date();
 
+    // ✅ user comes from withAuth middleware
     const userId = req.user?.userId;
     if (!rating || !content || !userId || !cityName || !onModel || !parentRef) {
       return new Response(
@@ -52,15 +50,7 @@ async function handler(req) {
       );
     }
 
-    // ✅ Check for abusive words
-    const filter = new Filter();
-    if (filter.isProfane(content)) {
-      return new Response(
-        JSON.stringify({ message: "Review contains inappropriate language.", success: false }),
-        { status: 400 }
-      );
-    }
-
+    // ✅ Ensure model exists
     const Model = MODELS[onModel];
     if (!Model) {
       return new Response(
@@ -69,6 +59,7 @@ async function handler(req) {
       );
     }
 
+    // ✅ Validate parentRef
     let parentObjectId;
     try {
       parentObjectId = new mongoose.Types.ObjectId(parentRef);
@@ -79,6 +70,7 @@ async function handler(req) {
       );
     }
 
+    // ✅ Create review with userId
     const newReview = await Review.create({
       rating,
       content,
@@ -89,8 +81,10 @@ async function handler(req) {
       onModel,
     });
 
+    // ✅ Populate createdBy so frontend gets username/email immediately
     const populatedReview = await newReview.populate("createdBy", "username email");
 
+    // ✅ Attach review to parent document
     const updatedDoc = await Model.findByIdAndUpdate(
       parentObjectId,
       { $push: { reviews: newReview._id } },
@@ -108,7 +102,7 @@ async function handler(req) {
       JSON.stringify({
         message: "Review added successfully!",
         success: true,
-        review: populatedReview,
+        review: populatedReview,   // <-- send populated version
       }),
       { status: 201 }
     );
