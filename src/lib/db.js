@@ -11,3 +11,6 @@ export async function connectToDatabase() {
     dbName: 'newDatabaseName', // 👈 your new database here
   });
 }
+
+// Default export kept for modules that import the legacy default (dbConnect)
+export default connectToDatabase;

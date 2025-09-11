@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Group from "@/models/Group";
 import City from "@/models/City";
-import User from "@/models/User"; // Assuming you have a User model
-import jwt from 'jsonwebtoken';
+import { getUserFromCookies } from '@/middleware/auth';
 
 export async function GET(request) {
     await dbConnect();
@@ -47,11 +46,7 @@ export async function POST(request) {
     await dbConnect();
     try {
         const body = await request.json();
-        // Prefer server-side auth: try to read token from cookies
-        const url = new URL(request.url);
-        const token = url.searchParams.get('token'); // fallback if client passes token
-
-        const { name, description, city, privacy, createdBy } = body;
+        const { name, description, city, privacy } = body;
 
         if (!name || !city) {
             return NextResponse.json({ success: false, message: "Missing required fields" }, { status: 400 });
@@ -62,20 +57,10 @@ export async function POST(request) {
             return NextResponse.json({ success: false, message: "City not found" }, { status: 404 });
         }
 
-        // createdBy fallback: if createdBy provided use it, otherwise try to use token (implementation detail depends on your auth)
-        let userDoc = null;
-        if (createdBy) userDoc = await User.findById(createdBy);
-        if (!userDoc && token) {
-            try {
-                const decoded = jwt.verify(token, process.env.JWT_SECRET);
-                userDoc = await User.findById(decoded.userId);
-            } catch (error) {
-                console.warn('Invalid token while creating group (ignored):', error?.message || error);
-            }
-        }
-
-        if (!userDoc) {
-            return NextResponse.json({ success: false, message: "User not found or not authenticated" }, { status: 401 });
+        // derive user from cookies / server-side auth
+        const user = await getUserFromCookies();
+        if (!user || !user.userId) {
+            return NextResponse.json({ success: false, message: "User not authenticated" }, { status: 401 });
         }
 
         const newGroup = new Group({
@@ -83,8 +68,8 @@ export async function POST(request) {
             description,
             city: cityDoc._id,
             privacy,
-            createdBy: userDoc._id,
-            members: [userDoc._id] // Creator is the first member
+            createdBy: user.userId,
+            members: [user.userId] // Creator is the first member
         });
 
         await newGroup.save();
@@ -98,10 +83,15 @@ export async function POST(request) {
 export async function PUT(request) {
     await dbConnect();
     try {
-        const { action, groupId, userId } = await request.json();
-            if (!action || !groupId || !userId) {
+        const { action, groupId } = await request.json();
+            if (!action || !groupId) {
                 return NextResponse.json({ success: false, message: 'Missing required fields' }, { status: 400 });
             }
+
+            // derive user from cookies
+            const user = await getUserFromCookies();
+            if (!user || !user.userId) return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+            const userId = user.userId;
 
             const group = await Group.findById(groupId);
             if (!group) return NextResponse.json({ success: false, message: 'Group not found' }, { status: 404 });
