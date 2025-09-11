@@ -2,6 +2,8 @@
    Run this alongside your Next backend: node src/socket-server.js
    Requires: MONGO_URI, JWT_SECRET
 */
+// Load environment variables from .env early so db modules see MONGO_URI
+import 'dotenv/config';
 import http from 'http';
 import { Server } from 'socket.io';
 import dbConnect from './lib/db.js';
