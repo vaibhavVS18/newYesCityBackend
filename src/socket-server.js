@@ -81,15 +81,65 @@ async function start() {
         const msg = new ChatMessage({ city: cityDoc._id, groupName, sender: userId, text, media: media || [] });
         await msg.save();
         const populated = await ChatMessage.findById(msg._id).populate('sender', 'username profileImage');
-        const out = populated.toObject ? populated.toObject() : populated;
-        const room = `${city}::${groupName}`;
-        io.to(room).emit('message', out);
+  const out = populated.toObject ? populated.toObject() : populated;
+  out.senderId = out.sender && (out.sender._id || out.sender.id) ? String(out.sender._id || out.sender.id) : (out.sender || null);
+  const room = `${city}::${groupName}`;
+  io.to(room).emit('message', out);
   // increment message count
   socket.serverStats.messages += 1;
         if (typeof ack === 'function') ack({ success: true, data: out });
       } catch (err) {
         console.error('socket sendMessage error', err);
         if (typeof ack === 'function') ack({ success: false, message: err.message });
+      }
+    });
+
+    socket.on('deleteMessage', async (payload, ack) => {
+      try {
+        const { messageId } = payload || {};
+        if (!messageId) {
+          if (typeof ack === 'function') ack({ success: false, message: 'Missing messageId' });
+          return;
+        }
+        const msg = await ChatMessage.findById(messageId).lean();
+        if (!msg) {
+          if (typeof ack === 'function') ack({ success: false, message: 'Message not found' });
+          return;
+        }
+        const userId = socket.user ? socket.user.userId : null;
+        // compute sender id robustly: msg.sender may be ObjectId or populated
+        const senderId = msg.sender && msg.sender._id ? String(msg.sender._id) : String(msg.sender);
+        console.log('socket deleteMessage attempt', { messageId, requester: userId, senderId });
+        if (!userId || String(senderId) !== String(userId)) {
+          console.warn('socket deleteMessage forbidden', { messageId, requester: userId, senderId });
+          if (typeof ack === 'function') ack({ success: false, message: 'Forbidden' });
+          return;
+        }
+        const deleted = await ChatMessage.findByIdAndDelete(messageId);
+        console.log('socket deleteMessage deleted', { messageId, deleted: !!deleted });
+        // broadcast deletion to room
+        // need cityName
+        const cityDoc = await City.findById(msg.city).lean();
+        const room = `${cityDoc?.cityName || 'unknown'}::${msg.groupName}`;
+        const out = { id: messageId, cityName: cityDoc?.cityName, groupName: msg.groupName };
+        io.to(room).emit('deleteMessage', out);
+        if (typeof ack === 'function') ack({ success: true, data: out });
+      } catch (err) {
+        console.error('socket deleteMessage error', err);
+        if (typeof ack === 'function') ack({ success: false, message: err.message });
+      }
+    });
+
+    // lightweight announce used by clients after they successfully delete via HTTP
+    socket.on('announceDelete', (payload) => {
+      try {
+        const { id, cityName, groupName } = payload || {};
+        if (!id) return;
+        const room = `${cityName || 'unknown'}::${groupName || 'Open Chat'}`;
+        const out = { id, cityName, groupName };
+        io.to(room).emit('deleteMessage', out);
+      } catch (err) {
+        console.error('announceDelete handling error', err);
       }
     });
 
