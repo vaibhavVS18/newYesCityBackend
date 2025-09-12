@@ -2,12 +2,18 @@
 // This file avoids importing Next.js-only modules so it can run in a standalone Node process.
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-
 export function verifyToken(token) {
   try {
-    return jwt.verify(token, JWT_SECRET);
-  } catch {
+    const JWT_SECRET = process.env.JWT_SECRET;
+    if (!JWT_SECRET) {
+      console.error('JWT_SECRET not found in environment');
+      return null;
+    }
+    const decoded = jwt.verify(token, JWT_SECRET);
+    console.log('JWT verification successful for user:', decoded.userId);
+    return decoded;
+  } catch (err) {
+    console.error('JWT verification failed:', err.message);
     return null;
   }
 }

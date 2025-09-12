@@ -1,4 +1,24 @@
-/* Simple Socket.IO server for chat real-time handling
+/* Simple// Resolve .env path relative to this file so running node from within `src/` still picks up project root .env
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const resolvedEnvPath = path.resolve(__dirname, '../.env');
+// load and show which .env file is used for debug
+console.log('[socket-server] resolving .env ->', resolvedEnvPath);
+dotenv.config({ path: resolvedEnvPath });
+
+import http from 'http';
+import { Server } from 'socket.io';
+import dbConnect from './lib/db.js';
+import ChatMessage from './models/ChatMessage.js';
+import City from './models/City.js';
+import User from './models/User.js';
+
+// Debug environment after imports
+console.log('[socket-server] MONGO_URI present?', !!process.env.MONGO_URI);
+console.log('[socket-server] JWT_SECRET present?', !!process.env.JWT_SECRET);
+console.log('[socket-server] JWT_SECRET length:', process.env.JWT_SECRET?.length || 'undefined');
+console.log('[socket-server] JWT_SECRET value:', JSON.stringify(process.env.JWT_SECRET));
+console.log('[socket-server] All env keys containing JWT:', Object.keys(process.env).filter(k => k.includes('JWT')));r for chat real-time handling
    Run this alongside your Next backend: node src/socket-server.js
    Requires: MONGO_URI, JWT_SECRET
 */
@@ -15,6 +35,8 @@ const resolvedEnvPath = path.resolve(__dirname, '../.env');
 console.log('[socket-server] resolving .env ->', resolvedEnvPath);
 dotenv.config({ path: resolvedEnvPath });
 console.log('[socket-server] MONGO_URI present?', !!process.env.MONGO_URI);
+console.log('[socket-server] JWT_SECRET present?', !!process.env.JWT_SECRET);
+console.log('[socket-server] JWT_SECRET length:', process.env.JWT_SECRET?.length);
 import http from 'http';
 import { Server } from 'socket.io';
 import dbConnect from './lib/db.js';
@@ -43,14 +65,39 @@ async function start() {
     try {
   // Log handshake origin for debugging in production
   console.log('socket handshake origin=', socket.handshake && socket.handshake.headers && socket.handshake.headers.origin);
-      const token = socket.handshake.auth && socket.handshake.auth.token;
-      if (!token) return next();
+      // Debug: log full cookie header and auth object
+      console.log('socket auth object:', socket.handshake.auth);
+      console.log('socket cookie header:', socket.handshake.headers.cookie);
+      
+      // Prefer explicit auth token from the client, but fall back to parsing cookies
+      let token = socket.handshake.auth && socket.handshake.auth.token;
+      if (!token && socket.handshake && socket.handshake.headers && socket.handshake.headers.cookie) {
+        // cookie string may look like: 'a=1; token=eyJ...; other=2'
+        const m = /(?:^|; )token=([^;]+)/.exec(socket.handshake.headers.cookie);
+        if (m) {
+          token = m[1];
+          console.log('extracted token from cookie:', token ? token.substring(0, 20) + '...' : 'null');
+        } else {
+          console.log('no token found in cookie header');
+        }
+      }
+      if (!token) {
+        console.log('no token available, continuing as guest');
+        return next();
+      }
       const decoded = verifyToken(token);
-      if (!decoded) return next();
+      if (!decoded) {
+        console.log('token verification failed');
+        return next();
+      }
       const user = await User.findById(decoded.userId).lean();
-      if (user) socket.user = { userId: user._id.toString(), username: user.username };
+      if (user) {
+        socket.user = { userId: user._id.toString(), username: user.username };
+        console.log('socket authenticated user:', user.username);
+      }
       return next();
-    } catch {
+    } catch (err) {
+      console.error('socket auth middleware error:', err);
       return next();
     }
   });
@@ -63,23 +110,28 @@ async function start() {
 
     socket.on('joinRoom', ({ city, groupName }) => {
       const room = `${city}::${groupName}`;
+      console.log('🚪 socket joinRoom:', { room, socketId: socket.id, userId: socket.user?.userId });
       socket.join(room);
     });
 
     socket.on('leaveRoom', ({ city, groupName }) => {
       const room = `${city}::${groupName}`;
+      console.log('🚪 socket leaveRoom:', { room, socketId: socket.id });
       socket.leave(room);
     });
 
     socket.on('sendMessage', async (payload, ack) => {
+      console.log('📩 socket sendMessage received:', { payload, socketId: socket.id, userId: socket.user?.userId });
       try {
         const { city, groupName, text, media } = payload || {};
         if (!city || !groupName) {
+          console.warn('❌ sendMessage missing fields:', { city, groupName });
           if (typeof ack === 'function') ack({ success: false, message: 'Missing fields' });
           return;
         }
         const cityDoc = await City.findOne({ cityName: city });
         if (!cityDoc) {
+          console.warn('❌ sendMessage city not found:', city);
           if (typeof ack === 'function') ack({ success: false, message: 'City not found' });
           return;
         }
@@ -87,19 +139,32 @@ async function start() {
         // require authenticated user when present on socket
         const userId = socket.user ? socket.user.userId : null;
         if (!userId) {
+          console.warn('❌ sendMessage user not authenticated');
           if (typeof ack === 'function') ack({ success: false, message: 'Unauthenticated' });
           return;
         }
 
+        console.log('✅ sendMessage authenticated userId:', userId);
+        console.log('💾 saving message to database...');
         const msg = new ChatMessage({ city: cityDoc._id, groupName, sender: userId, text, media: media || [] });
         await msg.save();
+        console.log('✅ message saved, populating...');
         const populated = await ChatMessage.findById(msg._id).populate('sender', 'username profileImage');
+        console.log('✅ message populated, broadcasting to room...');
   const out = populated.toObject ? populated.toObject() : populated;
   out.senderId = out.sender && (out.sender._id || out.sender.id) ? String(out.sender._id || out.sender.id) : (out.sender || null);
+  // Add city name and group name to the broadcast message so client can identify the correct room
+  out.cityName = city; // use the original city name from the request
+  out.groupName = groupName; // ensure groupName is included
   const room = `${city}::${groupName}`;
+        console.log('📡 broadcasting to room:', room);
+        const roomSockets = io.sockets.adapter.rooms.get(room);
+        console.log('👥 sockets in room:', roomSockets ? roomSockets.size : 0);
+        console.log('📤 broadcasting message data:', { id: out._id, text: out.text, sender: out.sender?.username, cityName: out.cityName });
   io.to(room).emit('message', out);
   // increment message count
   socket.serverStats.messages += 1;
+        console.log('✅ sending success ack to client');
         if (typeof ack === 'function') ack({ success: true, data: out });
       } catch (err) {
         console.error('socket sendMessage error', err);
