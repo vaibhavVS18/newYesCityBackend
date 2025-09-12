@@ -66,4 +66,4 @@ export async function GET(req, context) {
   }
 }
 
-// export const GET = withAuth(handler);
+export const GET = withAuth(handler);
