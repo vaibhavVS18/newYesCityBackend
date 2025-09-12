@@ -18,10 +18,10 @@ export async function GET(req, context) {
     const fieldsToSelect =
       "_id cityName stateOrUT alternateNames languagesSpoken climateInfo bestTimeToVisit cityHistory coverImage premium engagement";
 
-    // const userId = req.user.userId;
-    // const user = await User.findById(userId).select("premium");
-    // const userPremium = user?.premium || "FREE";
-    // const accessiblePremiums = getAccessiblePremiums(userPremium);
+    const userId = req.user.userId;
+    const user = await User.findById(userId).select("premium");
+    const userPremium = user?.premium || "FREE";
+    const accessiblePremiums = getAccessiblePremiums(userPremium);
 
     // ✅ Step 1: find the document
     const cityInfo = await CityInfo.findOne({
