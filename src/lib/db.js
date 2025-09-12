@@ -1,9 +1,9 @@
 import mongoose from 'mongoose';
 
-// prefer MONGO_URI but allow MONGODB_URI as a common fallback
-const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || '';
-
 export async function connectToDatabase() {
+  // prefer MONGO_URI but allow MONGODB_URI as a common fallback
+  const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || '';
+
   if (!MONGO_URI) {
     // Provide a clearer error than mongoose's openUri undefined error
     const msg = 'MONGO_URI (or MONGODB_URI) environment variable is not set. Cannot connect to MongoDB.';
