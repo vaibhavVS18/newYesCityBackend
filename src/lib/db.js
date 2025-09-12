@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import "dotenv/config";
 
 export async function connectToDatabase() {
   // prefer MONGO_URI but allow MONGODB_URI as a common fallback

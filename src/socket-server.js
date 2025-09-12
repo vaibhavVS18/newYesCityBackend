@@ -12,7 +12,6 @@ import dbConnect from './lib/db.js';
 import ChatMessage from './models/ChatMessage.js';
 import City from './models/City.js';
 import User from './models/User.js';
-
 // Debug environment after imports
 console.log('[socket-server] MONGO_URI present?', !!process.env.MONGO_URI);
 console.log('[socket-server] JWT_SECRET present?', !!process.env.JWT_SECRET);
@@ -39,7 +38,7 @@ console.log('[socket-server] JWT_SECRET present?', !!process.env.JWT_SECRET);
 console.log('[socket-server] JWT_SECRET length:', process.env.JWT_SECRET?.length);
 import http from 'http';
 import { Server } from 'socket.io';
-import dbConnect from './lib/db.js';
+import {connectToDatabase} from './lib/db.js';
 import ChatMessage from './models/ChatMessage.js';
 import City from './models/City.js';
 import User from './models/User.js';
@@ -48,7 +47,7 @@ import { verifyToken } from './lib/jwt.js';
 const PORT = process.env.SOCKET_PORT || 4001;
 
 async function start() {
-  await dbConnect();
+  await connectToDatabase();
   const server = http.createServer();
   // Configure allowed origins via environment variable for production safety.
   const allowed = (process.env.SOCKET_ALLOWED_ORIGINS || 'http://localhost:3000').split(',').map(s => s.trim()).filter(Boolean);
